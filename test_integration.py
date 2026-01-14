@@ -106,8 +106,9 @@ class TestServiceAlphaIntegration(unittest.TestCase):
     @patch('app.requests.get')
     def test_service_beta_connection_error(self, mock_get):
         """Test handling of Service Beta connection errors"""
-        # Mock connection error
-        mock_get.side_effect = Exception("Connection failed")
+        # Mock connection error - use requests.RequestException to get 503 status
+        import requests
+        mock_get.side_effect = requests.RequestException("Connection failed")
         
         # Make request to Service Alpha
         response = self.app.get('/order/222')
