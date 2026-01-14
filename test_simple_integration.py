@@ -5,8 +5,6 @@ Service Alpha correctly interprets the 'available_qty' field from Service Beta.
 """
 import requests
 import json
-import time
-import subprocess
 import sys
 import os
 from unittest.mock import patch, Mock

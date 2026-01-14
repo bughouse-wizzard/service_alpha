@@ -40,8 +40,8 @@ def create_order(item_id):
     except ValueError:
         return jsonify({"error": "Invalid response from inventory service"}), 500
     except Exception as e:
-        # Catch any other exceptions (e.g., network errors, timeouts)
-        return jsonify({"error": f"Failed to connect to inventory service: {str(e)}"}), 500
+        # Catch any other unexpected exceptions
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(port=5001)
