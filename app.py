@@ -14,8 +14,8 @@ def create_order(item_id):
         response.raise_for_status()
         inventory_data = response.json()
         
-        # Check stock level
-        stock = inventory_data.get('stock', 0)
+        # Check available quantity
+        stock = inventory_data.get('available_qty', 0)
         
         if stock > 0:
             return jsonify({"order_status": "confirmed"})
