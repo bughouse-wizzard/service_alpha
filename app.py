@@ -8,7 +8,7 @@ def get_inventory(item_id):
     # In a real app, this would query a DB
     return jsonify({
         "item_id": item_id,
-        "stock": 5  # Fixed stock for simplicity
+        "available_qty": 5  # Fixed available quantity for simplicity
     })
 
 if __name__ == '__main__':
