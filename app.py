@@ -1,5 +1,6 @@
 import requests
 from flask import Flask, jsonify
+import map_maker
 
 app = Flask(__name__)
 
@@ -14,13 +15,23 @@ def create_order(item_id):
         response.raise_for_status()
         inventory_data = response.json()
         
-        # Check stock level
-        stock = inventory_data.get('stock', 0)
+        # Use map_maker to process inventory data and ensure available_qty is correctly handled
+        mapped_data = map_maker.map_inventory_data(inventory_data)
+        available_qty = mapped_data.get('available_qty', 0)
         
-        if stock > 0:
-            return jsonify({"order_status": "confirmed"})
+        # Validate available_qty
+        if not map_maker.validate_available_qty(available_qty):
+            return jsonify({"error": "Invalid available_qty value received from inventory service"}), 500
+        
+        if available_qty > 0:
+            # Create order payload using map_maker
+            order_payload = map_maker.create_order_payload(item_id, available_qty)
+            return jsonify({
+                "order_status": "confirmed",
+                "order_details": order_payload
+            })
         else:
-            return jsonify({"order_status": "out_of_stock"})
+            return jsonify({"order_status": "out_of_available_qty"})
             
     except requests.RequestException as e:
         return jsonify({"error": f"Failed to connect to inventory service: {str(e)}"}), 503
