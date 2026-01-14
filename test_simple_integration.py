@@ -104,7 +104,6 @@ def test_service_alpha_integration():
         print("ALL INTEGRATION TESTS PASSED! ✓")
         print("Service Alpha correctly interprets 'available_qty' field from Service Beta")
         print("="*60)
-        return True
 
 if __name__ == '__main__':
     try:
