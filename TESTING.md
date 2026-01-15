@@ -38,8 +38,8 @@ The tests verify that Service Alpha:
 - Returns `{"order_status": "confirmed"}` for in-stock items
 
 ### Additional Validations
-1. **Order Confirmation**: Tests that items with stock > 0 return `"order_status": "confirmed"`
-2. **Out of Stock Handling**: Tests that items with stock = 0 return `"order_status": "out_of_stock"`
+1. **Order Confirmation**: Tests that items with available_qty > 0 return `"order_status": "confirmed"`
+2. **Out of Stock Handling**: Tests that items with available_qty = 0 return `"order_status": "out_of_stock"`
 3. **Error Handling**: Validates that connection errors to Service Beta are handled gracefully
 
 ## Test Architecture

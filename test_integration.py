@@ -20,14 +20,14 @@ def create_mock_service_beta():
     @app.route('/inventory/<item_id>', methods=['GET'])
     def get_inventory(item_id):
         """Mock endpoint that returns inventory data for an item"""
-        # For testing, return stock > 0 for item "123" to get "confirmed" status
-        # Return stock = 0 for item "456" to get "out_of_stock" status
+        # For testing, return available_qty > 0 for item "123" to get "confirmed" status
+        # Return available_qty = 0 for item "456" to get "out_of_stock" status
         if item_id == "123":
-            return jsonify({"item_id": item_id, "stock": 5, "name": "Test Product"})
+            return jsonify({"item_id": item_id, "available_qty": 5, "name": "Test Product"})
         elif item_id == "456":
-            return jsonify({"item_id": item_id, "stock": 0, "name": "Out of Stock Product"})
+            return jsonify({"item_id": item_id, "available_qty": 0, "name": "Out of Stock Product"})
         else:
-            return jsonify({"item_id": item_id, "stock": 10, "name": "Default Product"})
+            return jsonify({"item_id": item_id, "available_qty": 10, "name": "Default Product"})
     
     @app.route('/health', methods=['GET'])
     def health():

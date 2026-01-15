@@ -17,8 +17,8 @@ def run_mock_service_beta():
     
     @app.route('/inventory/<item_id>', methods=['GET'])
     def inventory(item_id):
-        # Always return stock > 0 to ensure order confirmation
-        return jsonify({"stock": 10, "item_id": item_id})
+        # Always return available_qty > 0 to ensure order confirmation
+        return jsonify({"available_qty": 10, "item_id": item_id})
     
     app.run(port=5002, host='0.0.0.0', debug=False, use_reloader=False)
 
