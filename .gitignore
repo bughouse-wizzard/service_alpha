@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+service_alpha.log
+service_beta.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Workspace directories
+workspace_*/
+.browser_screenshots/
+
+# Documentation
+*.docx
+
+# Scripts (we'll keep fixed_setup.sh as it's part of the fix)
+# But ignore other temporary scripts
+create_ssh_tunnels.sh
+local_proxy.py
+proxy_runtime.py
+proxy_runtime_v2.py
+redirector.html
+startOH.docx
