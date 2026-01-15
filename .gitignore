@@ -20,6 +20,15 @@ wheels/
 .installed.cfg
 *.egg
 
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 # IDE
 .vscode/
 .idea/
@@ -50,3 +59,7 @@ proxy_runtime.py
 proxy_runtime_v2.py
 redirector.html
 startOH.docx
+
+# OS
+.DS_Store
+Thumbs.db
