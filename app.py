@@ -1,10 +1,11 @@
+import os
 import requests
 from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Configuration for Service Beta URL
-INVENTORY_SERVICE_URL = "http://localhost:5002"
+# Configuration for Service Beta URL - configurable via environment variable
+INVENTORY_SERVICE_URL = os.getenv('INVENTORY_SERVICE_URL', 'http://localhost:5002')
 
 @app.route('/order/<item_id>', methods=['GET'])
 def create_order(item_id):
