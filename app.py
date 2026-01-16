@@ -1,10 +1,11 @@
+import os
 import requests
 from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Configuration for Service Beta URL
-INVENTORY_SERVICE_URL = "http://localhost:5002"
+# Configuration for Service Beta URL - configurable via environment variable
+INVENTORY_SERVICE_URL = os.getenv('INVENTORY_SERVICE_URL', 'http://localhost:5002')
 
 @app.route('/order/<item_id>', methods=['GET'])
 def create_order(item_id):
@@ -14,10 +15,10 @@ def create_order(item_id):
         response.raise_for_status()
         inventory_data = response.json()
         
-        # Check stock level
-        stock = inventory_data.get('stock', 0)
+        # Check available quantity level
+        available_qty = inventory_data.get('available_qty', 0)
         
-        if stock > 0:
+        if available_qty > 0:
             return jsonify({"order_status": "confirmed"})
         else:
             return jsonify({"order_status": "out_of_stock"})
