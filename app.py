@@ -20,10 +20,16 @@ def create_order(item_id):
         response.raise_for_status()
         inventory_data = response.json()
         
-        # Check available quantity level
-        available_qty = inventory_data.get('available_qty', 0)
+        # Check available quantity level with robust error handling
+        if not isinstance(inventory_data, dict):
+            return jsonify({"error": "Invalid response format from inventory service"}), 500
+            
+        available_qty = inventory_data.get('available_qty')
+        if available_qty is None:
+            # Try alternative field names for backward compatibility
+            available_qty = inventory_data.get('stock', 0)
         
-        if available_qty > 0:
+        if isinstance(available_qty, (int, float)) and available_qty > 0:
             return jsonify({"order_status": "confirmed"})
         else:
             return jsonify({"order_status": "out_of_stock"})

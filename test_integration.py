@@ -153,16 +153,9 @@ def main():
     service_alpha_thread.start()
     
     # Wait for Service Alpha to start
-    if not wait_for_service("http://localhost:5001/order/healthcheck", timeout=15):
-        # Service Alpha doesn't have a health endpoint, so we'll try a simple request
-        try:
-            # Just check if the server is accepting connections
-            response = requests.get("http://localhost:5001/order/test", timeout=2)
-            # If we get any response (even 404), the server is running
-            print("✓ Service Alpha is running (responded to request)")
-        except requests.RequestException:
-            print("ERROR: Service Alpha failed to start")
-            return False
+    if not wait_for_service("http://localhost:5001/health", timeout=15):
+        print("ERROR: Service Alpha failed to start")
+        return False
     
     print("✓ Service Alpha is running")
     
