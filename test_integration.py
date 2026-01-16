@@ -10,6 +10,7 @@ import threading
 import subprocess
 import sys
 import os
+import signal
 from flask import Flask, jsonify
 
 # Mock Service Beta server
@@ -39,12 +40,20 @@ def create_mock_service_beta():
 def run_service_beta_mock():
     """Run the mock Service Beta server"""
     app = create_mock_service_beta()
+    # Suppress Flask development server warning
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
     app.run(port=5002, host='0.0.0.0', debug=False, use_reloader=False)
 
 def run_service_alpha():
     """Run Service Alpha from app.py"""
     # Import and run the actual Service Alpha app
     import app
+    # Suppress Flask development server warning
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
     app.app.run(port=5001, host='0.0.0.0', debug=False, use_reloader=False)
 
 def wait_for_service(url, timeout=10):

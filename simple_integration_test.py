@@ -32,9 +32,10 @@ def wait_for_url(url, timeout=10):
     start = time.time()
     while time.time() - start < timeout:
         try:
-            requests.get(url, timeout=1)
-            return True
-        except:
+            response = requests.get(url, timeout=1)
+            if response.status_code == 200:
+                return True
+        except requests.RequestException:
             time.sleep(0.5)
     return False
 
