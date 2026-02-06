@@ -22,7 +22,7 @@ router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL)
 
 # Pydantic models for request/response
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional as Opt
 
 class SearchCreateRequest(BaseModel):
@@ -41,7 +41,8 @@ class SearchCreateRequest(BaseModel):
     ai_model_version: Opt[str] = Field(None, description="AI model version to use")
     confidence_threshold: float = Field(0.7, description="Confidence threshold for AI")
 
-    @validator('date_from', 'date_to')
+    @field_validator('date_from', 'date_to')
+    @classmethod
     def validate_date_format(cls, v):
         if v is not None:
             try:
@@ -91,7 +92,7 @@ async def create_search(
     """
     # Create search request in database
     db_search = SearchRequest(
-        **search_request.dict()
+        **search_request.model_dump()
     )
     
     db.add(db_search)

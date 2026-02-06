@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 
@@ -9,32 +10,36 @@ from app.models.search import SearchRequest, SearchStatus
 
 # Mock database session
 mock_db = Mock()
-mock_search_request = Mock(spec=SearchRequest)
 
-# Configure mock search request
-mock_search_request.id = uuid.uuid4()
-mock_search_request.input_source = "test_source"
-mock_search_request.ktru_code = "123456"
-mock_search_request.status = SearchStatus.PENDING.value
-mock_search_request.limit_contracts = 5
-mock_search_request.selected_contract_ids = None
-mock_search_request.nmc_value = None
-mock_search_request.search_query = "test query"
-mock_search_request.region_filter = "Moscow"
-mock_search_request.date_from = "2024-01-01"
-mock_search_request.date_to = "2024-12-31"
-mock_search_request.price_min = 1000.0
-mock_search_request.price_max = 50000.0
-mock_search_request.total_contracts_found = 0
-mock_search_request.contracts_processed = 0
-mock_search_request.processing_started_at = None
-mock_search_request.processing_completed_at = None
-mock_search_request.error_message = None
-mock_search_request.retry_count = 0
-mock_search_request.ai_model_version = None
-mock_search_request.confidence_threshold = 0.8
-mock_search_request.created_at = "2024-01-01T00:00:00"
-mock_search_request.updated_at = "2024-01-01T00:00:00"
+# Create a real SearchRequest instance for testing
+def create_test_search_request():
+    search = SearchRequest()
+    search.id = uuid.uuid4()
+    search.input_source = "test_source"
+    search.ktru_code = "123456"
+    search.status = SearchStatus.PENDING
+    search.limit_contracts = 5
+    search.selected_contract_ids = None
+    search.nmc_value = None
+    search.search_query = "test query"
+    search.region_filter = "Moscow"
+    search.date_from = "2024-01-01"
+    search.date_to = "2024-12-31"
+    search.price_min = 1000.0
+    search.price_max = 50000.0
+    search.total_contracts_found = 0
+    search.contracts_processed = 0
+    search.processing_started_at = None
+    search.processing_completed_at = None
+    search.error_message = None
+    search.retry_count = 0
+    search.ai_model_version = None
+    search.confidence_threshold = 0.8
+    search.created_at = datetime.now()
+    search.updated_at = datetime.now()
+    return search
+
+mock_search_request = create_test_search_request()
 
 def mock_get_db():
     yield mock_db
@@ -144,22 +149,27 @@ def test_create_search_invalid_date():
 @pytest.mark.integration
 def test_get_search():
     """Test getting search details by ID"""
-    # First create a search
-    search_data = {
-        "input_source": "test_source_2",
-        "limit_contracts": 10
-    }
+    # Create a test search request
+    test_search = create_test_search_request()
+    test_search.input_source = "test_source_2"
+    test_search.limit_contracts = 10
     
-    create_response = client.post("/api/search", json=search_data)
-    search_id = create_response.json()["id"]
+    # Mock the database query to return our test search
+    mock_query = Mock()
+    mock_filter = Mock()
+    mock_first = Mock(return_value=test_search)
+    
+    mock_db.query.return_value = mock_query
+    mock_query.filter.return_value = mock_filter
+    mock_filter.first.return_value = test_search
     
     # Now get the search
-    response = client.get(f"/api/search/{search_id}")
+    response = client.get(f"/api/search/{test_search.id}")
     
     assert response.status_code == 200
     data = response.json()
     
-    assert data["id"] == search_id
+    assert data["id"] == str(test_search.id)
     assert data["input_source"] == "test_source_2"
     assert data["limit_contracts"] == 10
 
@@ -167,6 +177,15 @@ def test_get_search():
 def test_get_search_not_found():
     """Test getting non-existent search"""
     non_existent_id = str(uuid.uuid4())
+    
+    # Mock the database query to return None (not found)
+    mock_query = Mock()
+    mock_filter = Mock()
+    mock_first = Mock(return_value=None)
+    
+    mock_db.query.return_value = mock_query
+    mock_query.filter.return_value = mock_filter
+    mock_filter.first.return_value = None
     
     response = client.get(f"/api/search/{non_existent_id}")
     
@@ -197,58 +216,96 @@ def test_stop_search():
 @pytest.mark.integration
 def test_search_events_stream():
     """Test connecting to SSE stream"""
-    # First create a search
-    search_data = {
-        "input_source": "test_source_4",
-        "limit_contracts": 2
-    }
+    # Create a test search request
+    test_search = create_test_search_request()
+    test_search.input_source = "test_source_4"
+    test_search.limit_contracts = 2
     
-    create_response = client.post("/api/search", json=search_data)
-    search_id = create_response.json()["id"]
+    # Mock the database query to return our test search
+    mock_query = Mock()
+    mock_filter = Mock()
+    mock_first = Mock(return_value=test_search)
     
-    # Connect to events stream
-    with client.stream("GET", f"/api/search/{search_id}/events") as response:
-        # Read first event
-        lines = []
-        for line in response.iter_lines():
-            if line:
-                lines.append(line)
-                if len(lines) >= 2:  # Get at least initial connection event
-                    break
+    mock_db.query.return_value = mock_query
+    mock_query.filter.return_value = mock_filter
+    mock_filter.first.return_value = test_search
+    
+    # Mock the SessionLocal for the SSE stream
+    with patch('app.db.SessionLocal') as mock_session_local:
+        mock_session = Mock()
+        mock_session_local.return_value = mock_session
         
-        # Should have received some events
-        assert len(lines) > 0
+        # Mock the query in the SSE stream
+        mock_session_query = Mock()
+        mock_session_filter = Mock()
+        mock_session_first = Mock(return_value=test_search)
         
-        # Parse first event
-        event_data = lines[0]
-        assert event_data.startswith("data: ")
+        mock_session.query.return_value = mock_session_query
+        mock_session_query.filter.return_value = mock_session_filter
+        mock_session_filter.first.return_value = test_search
+        mock_session.refresh = Mock()
         
-        # Remove "data: " prefix and parse JSON
-        import json
-        event_json = json.loads(event_data[6:])
-        assert "status" in event_json
-        assert event_json.get("search_id") == search_id
+        # Mock redis client
+        with patch('app.api.endpoints.search.redis_client') as mock_redis:
+            mock_redis.get.return_value = None
+            
+            # Connect to events stream
+            with client.stream("GET", f"/api/search/{test_search.id}/events") as response:
+                # Read first event
+                lines = []
+                for line in response.iter_lines():
+                    if line:
+                        lines.append(line)
+                        if len(lines) >= 2:  # Get at least initial connection event
+                            break
+                
+                # Should have received some events
+                assert len(lines) > 0
+                
+                # Parse first event
+                event_data = lines[0]
+                assert event_data.startswith("data: ")
+                
+                # Remove "data: " prefix and parse JSON
+                import json
+                event_json = json.loads(event_data[6:])
+                assert "status" in event_json
+                assert event_json.get("search_id") == str(test_search.id)
 
 @pytest.mark.integration
 def test_search_events_not_found():
     """Test connecting to SSE stream for non-existent search"""
     non_existent_id = str(uuid.uuid4())
     
-    with client.stream("GET", f"/api/search/{non_existent_id}/events") as response:
-        # Read event
-        lines = []
-        for line in response.iter_lines():
-            if line:
-                lines.append(line)
-                break
+    # Mock the SessionLocal for the SSE stream
+    with patch('app.db.SessionLocal') as mock_session_local:
+        mock_session = Mock()
+        mock_session_local.return_value = mock_session
         
-        # Should have error event
-        assert len(lines) > 0
+        # Mock the query in the SSE stream to return None (not found)
+        mock_session_query = Mock()
+        mock_session_filter = Mock()
+        mock_session_first = Mock(return_value=None)
         
-        import json
-        event_json = json.loads(lines[0][6:])
-        assert "error" in event_json
-        assert "not found" in event_json["error"].lower()
+        mock_session.query.return_value = mock_session_query
+        mock_session_query.filter.return_value = mock_session_filter
+        mock_session_filter.first.return_value = None
+        
+        with client.stream("GET", f"/api/search/{non_existent_id}/events") as response:
+            # Read event
+            lines = []
+            for line in response.iter_lines():
+                if line:
+                    lines.append(line)
+                    break
+            
+            # Should have error event
+            assert len(lines) > 0
+            
+            import json
+            event_json = json.loads(lines[0][6:])
+            assert "error" in event_json
+            assert "not found" in event_json["error"].lower()
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
