@@ -12,7 +12,7 @@ import redis
 from app.db import get_db
 from app.models.search import SearchRequest, SearchStatus
 from app.core.config import settings
-from app.workers.tasks import example_task  # We'll update this later
+from app.workers.tasks import execute_search_task
 
 # Create router
 router = APIRouter()
@@ -97,9 +97,8 @@ async def create_search(
     db.commit()
     db.refresh(db_search)
     
-    # Trigger Celery task (placeholder - will be updated with actual task)
-    # For now, we'll use the example task
-    task_result = example_task.delay(f"Search {db_search.id} started")
+    # Trigger Celery task to execute the search
+    task_result = execute_search_task.delay(db_search.id)
     
     # Store task ID in Redis for tracking
     redis_client.set(f"search_task:{db_search.id}", task_result.id)
