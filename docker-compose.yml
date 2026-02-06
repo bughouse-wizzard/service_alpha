@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: service_alpha_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: service_alpha
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - service_alpha_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: service_alpha_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - service_alpha_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: service_alpha_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_URL=postgresql://postgres:postgres@db:5432/service_alpha
+      - REDIS_URL=redis://redis:6379/0
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - service_alpha_network
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: service_alpha_worker
+    environment:
+      - DB_URL=postgresql://postgres:postgres@db:5432/service_alpha
+      - REDIS_URL=redis://redis:6379/0
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    networks:
+      - service_alpha_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  service_alpha_network:
+    driver: bridge
