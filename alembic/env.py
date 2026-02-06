@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 from dotenv import load_dotenv
 
@@ -7,6 +8,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
+# Add the app directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -14,16 +18,14 @@ load_dotenv()
 # access to the values within the .ini file in use.
 config = context.config
 
+# Override sqlalchemy.url from environment variable if present
+database_url = os.getenv('DATABASE_URL')
+if database_url:
+    config.set_main_option('sqlalchemy.url', database_url)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Override sqlalchemy.url with environment variable
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
-
 # add your model's MetaData object here
 # for 'autogenerate' support
 from app.models.base import Base

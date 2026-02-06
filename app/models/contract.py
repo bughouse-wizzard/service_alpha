@@ -70,8 +70,6 @@ class SpecComparisonRow(BaseModel):
     
     # Foreign key to contract result
     contract_result_id = Column(UUID(as_uuid=True), ForeignKey("contract_results.id"), nullable=False, index=True)
-    
-    # Comparison data
     name = Column(String(255), nullable=False)
     target_value = Column(Text, nullable=True)
     actual_value = Column(Text, nullable=True)
