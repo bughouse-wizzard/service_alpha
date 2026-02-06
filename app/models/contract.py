@@ -56,6 +56,7 @@ class ContractResult(BaseModel):
     # Processing flags
     is_verified = Column(Boolean, default=False, nullable=False)
     verification_notes = Column(Text, nullable=True)
+    accepted_for_nmc = Column(Boolean, default=False, nullable=False)
     
     # Relationships
     search_request = relationship("SearchRequest", back_populates="contract_results")
