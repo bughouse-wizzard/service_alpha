@@ -9,24 +9,30 @@ class Settings(BaseSettings):
     
     # Database
     DB_URL: str = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/service_alpha")
+    DATABASE_URL: Optional[str] = None  # For compatibility with .env file
     
     # Redis
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_URL: str = "redis://localhost:6379/0"
     
     # DeepSeek API
-    DEEPSEEK_API_KEY: Optional[str] = os.getenv("DEEPSEEK_API_KEY")
+    DEEPSEEK_API_KEY: Optional[str] = None
     
     # Application
     APP_NAME: str = "Service Alpha"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    DEBUG: bool = False
     
     # CORS
     CORS_ORIGINS: list = ["*"]
     
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
 
 
 settings = Settings()
+
+# Use DATABASE_URL from .env if provided, otherwise use DB_URL
+if settings.DATABASE_URL:
+    settings.DB_URL = settings.DATABASE_URL
