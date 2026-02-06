@@ -57,7 +57,7 @@ celerybeat.pid
 *.sqlite3
 
 # Alembic
-alembic/versions/*
+# alembic/versions/*  # Commented out to allow migration files to be committed
 
 # Temporary files
 *.tmp
