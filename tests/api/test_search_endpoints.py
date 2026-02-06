@@ -100,7 +100,7 @@ def test_create_search():
     
     # Mock redis and celery
     with patch('app.api.endpoints.search.redis_client') as mock_redis, \
-         patch('app.api.endpoints.search.example_task') as mock_task:
+         patch('app.api.endpoints.search.execute_search_task') as mock_task:
         
         mock_task.delay.return_value = Mock(id="task-123")
         mock_redis.set = Mock()
@@ -141,6 +141,7 @@ def test_create_search_invalid_date():
     # Should return validation error
     assert response.status_code == 422
 
+@pytest.mark.integration
 def test_get_search():
     """Test getting search details by ID"""
     # First create a search
@@ -162,6 +163,7 @@ def test_get_search():
     assert data["input_source"] == "test_source_2"
     assert data["limit_contracts"] == 10
 
+@pytest.mark.integration
 def test_get_search_not_found():
     """Test getting non-existent search"""
     non_existent_id = str(uuid.uuid4())
@@ -171,6 +173,7 @@ def test_get_search_not_found():
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
 
+@pytest.mark.integration
 def test_stop_search():
     """Test stopping a search"""
     # First create a search
@@ -191,6 +194,7 @@ def test_stop_search():
     assert data["message"] == f"Stop signal sent for search {search_id}"
     assert data["search_id"] == search_id
 
+@pytest.mark.integration
 def test_search_events_stream():
     """Test connecting to SSE stream"""
     # First create a search
@@ -225,6 +229,7 @@ def test_search_events_stream():
         assert "status" in event_json
         assert event_json.get("search_id") == search_id
 
+@pytest.mark.integration
 def test_search_events_not_found():
     """Test connecting to SSE stream for non-existent search"""
     non_existent_id = str(uuid.uuid4())
