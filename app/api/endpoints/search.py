@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models.search import SearchRequest, SearchStatus
 from app.core.config import settings
 from app.workers.tasks import execute_search_task
+from app.services.report_generator import ReportGenerator
 
 # Create router
 router = APIRouter()
@@ -199,3 +200,51 @@ async def stream_search_events(search_id: uuid.UUID):
             "X-Accel-Buffering": "no"  # Disable buffering for nginx
         }
     )
+
+
+@router.get("/api/search/{search_id}/report")
+async def get_search_report(
+    search_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate and download NMCC calculation report for a search.
+    
+    Returns XLSX file with two sheets:
+    1. Summary: NMCC calculation and input parameters
+    2. Comparison Matrix: Specifications vs Contracts comparison
+    """
+    # Check if search exists
+    search = db.query(SearchRequest).filter(SearchRequest.id == search_id).first()
+    
+    if not search:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Search with ID {search_id} not found"
+        )
+    
+    # Check if search is completed
+    if search.status != SearchStatus.COMPLETED.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Search with ID {search_id} is not completed. Current status: {search.status}"
+        )
+    
+    # Generate report
+    try:
+        report_generator = ReportGenerator(db)
+        xlsx_file, filename = report_generator.generate_report(search_id)
+        
+        return StreamingResponse(
+            xlsx_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Cache-Control": "no-cache",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate report: {str(e)}"
+        )
