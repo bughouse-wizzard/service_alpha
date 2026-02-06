@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     
     # Database
     DB_URL: str = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/service_alpha")
+    DATABASE_URL: Optional[str] = None  # For compatibility with .env file
     
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -30,3 +31,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Use DATABASE_URL from .env if provided, otherwise use DB_URL
+if settings.DATABASE_URL:
+    settings.DB_URL = settings.DATABASE_URL
