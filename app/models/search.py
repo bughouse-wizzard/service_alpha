@@ -10,9 +10,11 @@ class SearchStatus(enum.Enum):
     """Status of search request"""
     PENDING = "pending"
     PROCESSING = "processing"
+    RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    STOPPED = "stopped"
 
 class SearchRequest(BaseModel):
     """Search request model"""
@@ -33,6 +35,7 @@ class SearchRequest(BaseModel):
     date_to = Column(String(20), nullable=True)    # Format: YYYY-MM-DD
     price_min = Column(Float, nullable=True)
     price_max = Column(Float, nullable=True)
+    technical_specification = Column(Text, nullable=True)
     
     # Processing metadata
     total_contracts_found = Column(Integer, default=0, nullable=False)

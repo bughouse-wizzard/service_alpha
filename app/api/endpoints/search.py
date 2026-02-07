@@ -22,7 +22,7 @@ router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL)
 
 # Pydantic models for request/response
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional as Opt
 
 class SearchCreateRequest(BaseModel):
@@ -38,10 +38,12 @@ class SearchCreateRequest(BaseModel):
     date_to: Opt[str] = Field(None, description="End date (YYYY-MM-DD)")
     price_min: Opt[float] = Field(None, description="Minimum price")
     price_max: Opt[float] = Field(None, description="Maximum price")
+    technical_specification: Opt[str] = Field(None, description="Technical specification text for comparison")
     ai_model_version: Opt[str] = Field(None, description="AI model version to use")
     confidence_threshold: float = Field(0.7, description="Confidence threshold for AI")
 
-    @validator('date_from', 'date_to')
+    @field_validator('date_from', 'date_to')
+    @classmethod
     def validate_date_format(cls, v):
         if v is not None:
             try:
@@ -65,6 +67,7 @@ class SearchResponse(BaseModel):
     date_to: Opt[str]
     price_min: Opt[float]
     price_max: Opt[float]
+    technical_specification: Opt[str]
     total_contracts_found: int
     contracts_processed: int
     processing_started_at: Opt[str]
@@ -76,8 +79,23 @@ class SearchResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
+
+@router.get("/api/searches", response_model=List[SearchResponse])
+async def get_searches(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of all searches (search history)
+    
+    Returns paginated list of search requests for history view
+    """
+    searches = db.query(SearchRequest).order_by(SearchRequest.created_at.desc()).offset(skip).limit(limit).all()
+    return searches
 
 @router.post("/api/search", response_model=SearchResponse, status_code=status.HTTP_201_CREATED)
 async def create_search(
@@ -91,7 +109,7 @@ async def create_search(
     """
     # Create search request in database
     db_search = SearchRequest(
-        **search_request.dict()
+        **search_request.model_dump()
     )
     
     db.add(db_search)
@@ -171,13 +189,13 @@ async def stream_search_events(search_id: uuid.UUID):
                 # Refresh search object from database
                 db.refresh(search)
                 
-                if search.status == SearchStatus.COMPLETED.value:
+                if search.status == SearchStatus.COMPLETED:
                     yield f"data: {json.dumps({'status': 'completed', 'processed_count': search.contracts_processed, 'total': search.total_contracts_found})}\n\n"
                     break
-                elif search.status == SearchStatus.FAILED.value:
+                elif search.status == SearchStatus.FAILED:
                     yield f"data: {json.dumps({'status': 'failed', 'error': search.error_message})}\n\n"
                     break
-                elif search.status == SearchStatus.CANCELLED.value:
+                elif search.status == SearchStatus.CANCELLED:
                     yield f"data: {json.dumps({'status': 'cancelled', 'message': 'Search cancelled'})}\n\n"
                     break
                 
@@ -224,10 +242,10 @@ async def get_search_report(
         )
     
     # Check if search is completed
-    if search.status != SearchStatus.COMPLETED.value:
+    if search.status != SearchStatus.COMPLETED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Search with ID {search_id} is not completed. Current status: {search.status}"
+            detail=f"Search with ID {search_id} is not completed. Current status: {search.status.value}"
         )
     
     # Generate report

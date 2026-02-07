@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None  # For compatibility with .env file
     
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
     # DeepSeek API
     DEEPSEEK_API_KEY: Optional[str] = None
@@ -29,10 +29,11 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list = ["*"]
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": True
+    }
 
 
 settings = Settings()

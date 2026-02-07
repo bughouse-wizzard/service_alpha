@@ -178,6 +178,10 @@ class TestFullPipeline:
                                 # 2. Status was updated to PROCESSING
                                 assert sample_search_request.status == SearchStatus.COMPLETED
                                 assert sample_search_request.processing_started_at is not None
+
+                                # Note: We don't check sample_search_request.status directly because
+                                # the mock object's status might be changed multiple times during execution
+                                # (PROCESSING -> COMPLETED)
                                 
                                 # 3. Parser searcher was called with correct parameters
                                 mock_parser_searcher.search.assert_called_once_with(

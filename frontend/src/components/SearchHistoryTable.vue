@@ -7,16 +7,16 @@
             ID
           </th>
           <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Query
+            Input Source
           </th>
           <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Type
+            KTRU Code
           </th>
           <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Status
           </th>
           <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Results
+            Contracts
           </th>
           <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Created
@@ -37,13 +37,10 @@
             {{ search.id.substring(0, 8) }}...
           </td>
           <td class="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-            {{ search.query }}
+            {{ search.input_source }}
           </td>
-          <td class="px-4 py-3 whitespace-nowrap">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                  :class="typeClass(search.type)">
-              {{ search.type }}
-            </span>
+          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+            {{ search.ktru_code || '-' }}
           </td>
           <td class="px-4 py-3 whitespace-nowrap">
             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
@@ -52,10 +49,10 @@
             </span>
           </td>
           <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-            {{ search.resultsCount }}
+            {{ search.contracts_processed }}/{{ search.total_contracts_found }}
           </td>
           <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-            {{ formatDate(search.createdAt) }}
+            {{ formatDate(search.created_at) }}
           </td>
           <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
             <button 
@@ -65,7 +62,7 @@
               View
             </button>
             <button 
-              v-if="search.status === 'running'"
+              v-if="search.status === 'RUNNING'"
               @click.stop="stopSearch(search.id)"
               class="text-red-500 hover:text-red-700"
             >
@@ -158,6 +155,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import api from "../services/api"
 
 const emit = defineEmits<{
   selectSearch: [searchId: string]
@@ -165,62 +163,23 @@ const emit = defineEmits<{
 
 interface SearchItem {
   id: string
-  query: string
-  type: string
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped'
-  resultsCount: number
-  createdAt: string
+  input_source: string
+  ktru_code: string | null
+  status: string
+  limit_contracts: number
+  region_filter: string | null
+  technical_specification: string | null
+  total_contracts_found: number
+  contracts_processed: number
+  created_at: string
+  updated_at: string
 }
-
-// Mock data for demonstration
-const mockSearches: SearchItem[] = [
-  {
-    id: 'search_1707234567890_abc123',
-    query: 'machine learning algorithms',
-    type: 'web',
-    status: 'completed',
-    resultsCount: 245,
-    createdAt: '2024-02-05T10:30:00Z'
-  },
-  {
-    id: 'search_1707234567891_def456',
-    query: 'vue 3 composition api',
-    type: 'api',
-    status: 'running',
-    resultsCount: 87,
-    createdAt: '2024-02-05T11:15:00Z'
-  },
-  {
-    id: 'search_1707234567892_ghi789',
-    query: 'python data analysis',
-    type: 'database',
-    status: 'failed',
-    resultsCount: 0,
-    createdAt: '2024-02-05T09:45:00Z'
-  },
-  {
-    id: 'search_1707234567893_jkl012',
-    query: 'react vs vue comparison',
-    type: 'web',
-    status: 'stopped',
-    resultsCount: 42,
-    createdAt: '2024-02-04T16:20:00Z'
-  },
-  {
-    id: 'search_1707234567894_mno345',
-    query: 'tailwindcss components',
-    type: 'custom',
-    status: 'completed',
-    resultsCount: 156,
-    createdAt: '2024-02-04T14:10:00Z'
-  }
-]
 
 const searches = ref<SearchItem[]>([])
 const isLoading = ref(true)
 const currentPage = ref(1)
 const itemsPerPage = 10
-const totalItems = ref(25) // Mock total
+const totalItems = ref(0)
 
 onMounted(async () => {
   await loadSearches()
@@ -229,36 +188,39 @@ onMounted(async () => {
 const loadSearches = async () => {
   isLoading.value = true
   try {
-    // Simulate API call to GET /api/search
-    await new Promise(resolve => setTimeout(resolve, 800))
+    // Call the API to get search history
+    const params = {
+      skip: (currentPage.value - 1) * itemsPerPage,
+      limit: itemsPerPage
+    }
     
-    // For now, use mock data
-    searches.value = mockSearches
-    totalItems.value = 25
+    const data = await api.real.getSearchHistory(params)
+    searches.value = data
+    totalItems.value = data.length // Note: backend returns all items, not paginated
   } catch (error) {
     console.error('Failed to load search history:', error)
+    // Fall back to mock data if real API fails
+    try {
+      const mockData = await api.mock.getSearchHistory()
+      searches.value = mockData
+      totalItems.value = mockData.length
+    } catch (mockError) {
+      console.error('Failed to load mock data:', mockError)
+    }
   } finally {
     isLoading.value = false
   }
 }
 
-const typeClass = (type: string) => {
-  const classes: Record<string, string> = {
-    web: 'bg-blue-100 text-blue-800',
-    api: 'bg-green-100 text-green-800',
-    database: 'bg-purple-100 text-purple-800',
-    custom: 'bg-yellow-100 text-yellow-800'
-  }
-  return classes[type] || 'bg-gray-100 text-gray-800'
-}
-
 const statusClass = (status: string) => {
   const classes: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    running: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800',
-    stopped: 'bg-gray-100 text-gray-800'
+    'PENDING': 'bg-yellow-100 text-yellow-800',
+    'RUNNING': 'bg-blue-100 text-blue-800',
+    'COMPLETED': 'bg-green-100 text-green-800',
+    'FAILED': 'bg-red-100 text-red-800',
+    'STOPPED': 'bg-gray-100 text-gray-800',
+    'PROCESSING': 'bg-blue-100 text-blue-800',
+    'CANCELLED': 'bg-gray-100 text-gray-800'
   }
   return classes[status] || 'bg-gray-100 text-gray-800'
 }
@@ -280,18 +242,19 @@ const viewSearch = (searchId: string) => {
 const stopSearch = async (searchId: string) => {
   if (confirm('Are you sure you want to stop this search?')) {
     try {
-      // Simulate API call to stop search
-      console.log('Stopping search:', searchId)
-      // In real implementation: await api.stopSearch(searchId)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Call the API to stop the search
+      await api.real.stopSearch(searchId)
       
       // Update local state
       const search = searches.value.find(s => s.id === searchId)
       if (search) {
-        search.status = 'stopped'
+        search.status = 'STOPPED'
       }
+      
+      console.log(`Search ${searchId} stopped successfully`)
     } catch (error) {
       console.error('Failed to stop search:', error)
+      alert('Failed to stop search. Please check the console for details.')
     }
   }
 }

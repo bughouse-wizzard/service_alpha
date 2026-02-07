@@ -17,10 +17,11 @@
       <div class="mb-6 p-4 bg-blue-50 rounded-lg">
         <div class="flex justify-between items-start">
           <div>
-            <h4 class="font-medium text-gray-900">Search: {{ currentSearch?.query || 'Loading...' }}</h4>
+            <h4 class="font-medium text-gray-900">Search Results</h4>
             <div class="flex items-center mt-2 space-x-4 text-sm text-gray-600">
               <span>ID: <code class="font-mono bg-gray-100 px-1 rounded">{{ searchId.substring(0, 12) }}...</code></span>
-              <span>Type: {{ currentSearch?.type || 'N/A' }}</span>
+              <span>Input Source: {{ currentSearch?.input_source || 'N/A' }}</span>
+              <span>KTRU: {{ currentSearch?.ktru_code || 'N/A' }}</span>
               <span>Status: 
                 <span :class="statusClass(currentSearch?.status || '')" class="px-2 py-0.5 rounded-full text-xs">
                   {{ currentSearch?.status || 'loading' }}
@@ -52,7 +53,7 @@
         <div class="mt-4">
           <div class="flex justify-between text-sm text-gray-600 mb-1">
             <span>Progress</span>
-            <span>{{ progress }}%</span>
+            <span>{{ currentSearch?.contracts_processed || 0 }}/{{ currentSearch?.total_contracts_found || 0 }} contracts</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-2.5">
             <div 
@@ -82,16 +83,25 @@
                 #
               </th>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Title
+                Contract Link
               </th>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Source
+                Contract Number
               </th>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Relevance
+                Year
               </th>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Found At
+                Price per Unit
+              </th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Match Type
+              </th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Manufacturer
+              </th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                AI Score
               </th>
             </tr>
           </thead>
@@ -101,44 +111,55 @@
                 {{ index + 1 }}
               </td>
               <td class="px-4 py-3">
-                <div class="text-sm font-medium text-gray-900">{{ result.title }}</div>
-                <div class="text-sm text-gray-500 truncate max-w-md">{{ result.snippet }}</div>
+                <a :href="result.source_url" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm font-medium">
+                  View Contract
+                </a>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {{ result.reestr_number }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {{ result.contract_year || 'N/A' }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {{ formatCurrency(result.contract_price) }}
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {{ result.source }}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                      :class="matchTypeClass(result.match_type)">
+                  {{ result.match_type }}
                 </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                {{ result.supplier_name || 'N/A' }}
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
                     <div 
                       class="bg-green-500 h-1.5 rounded-full"
-                      :style="{ width: (result.relevance * 100) + '%' }"
+                      :style="{ width: result.ai_score + '%' }"
                     ></div>
                   </div>
-                  <span class="text-sm text-gray-900">{{ Math.round(result.relevance * 100) }}%</span>
+                  <span class="text-sm text-gray-900">{{ Math.round(result.ai_score) }}%</span>
                 </div>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                {{ formatTime(result.timestamp) }}
               </td>
             </tr>
             
             <!-- Loading State -->
             <tr v-if="isLoading">
-              <td colspan="5" class="px-4 py-8 text-center">
+              <td colspan="8" class="px-4 py-8 text-center">
                 <div class="flex justify-center items-center">
                   <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                  <span class="ml-2 text-gray-500">Loading results...</span>
+                  <span class="ml-2 text-gray-500">Loading contract results...</span>
                 </div>
               </td>
             </tr>
             
             <!-- Empty Results -->
             <tr v-else-if="results.length === 0">
-              <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                No results yet. Results will appear here as they are found.
+              <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                No contract results yet. Results will appear here as they are found.
               </td>
             </tr>
           </tbody>
@@ -164,6 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
+import api from "../services/api"
 
 interface Props {
   searchId?: string | null
@@ -171,30 +193,45 @@ interface Props {
 
 const props = defineProps<Props>()
 
-interface SearchResult {
+interface ContractResult {
   id: string
-  title: string
-  snippet: string
-  source: string
-  relevance: number
-  timestamp: number
+  reestr_number: string
+  contract_number: string
+  contract_date: string | null
+  contract_year: string | null
+  match_type: string
+  ai_score: number
+  supplier_name: string | null
+  customer_name: string | null
+  contract_price: number | null
+  currency: string
+  source_system: string
+  source_url: string
+  scraped_at: string
 }
 
 interface SearchEvent {
-  type: 'info' | 'warning' | 'error' | 'result' | 'progress'
+  type: 'info' | 'warning' | 'error' | 'result' | 'progress' | 'status'
   message: string
   timestamp: number
   data?: any
 }
 
 interface SearchInfo {
-  query: string
-  type: string
+  id: string
+  input_source: string
+  ktru_code: string | null
   status: string
-  progress: number
+  limit_contracts: number
+  region_filter: string | null
+  technical_specification: string | null
+  total_contracts_found: number
+  contracts_processed: number
+  created_at: string
+  updated_at: string
 }
 
-const results = ref<SearchResult[]>([])
+const results = ref<ContractResult[]>([])
 const events = ref<SearchEvent[]>([])
 const currentSearch = ref<SearchInfo | null>(null)
 const isLoading = ref(false)
@@ -202,24 +239,33 @@ const isConnected = ref(false)
 const eventSource = ref<EventSource | null>(null)
 
 const progress = computed(() => {
-  return currentSearch.value?.progress || 0
+  if (!currentSearch.value || currentSearch.value.total_contracts_found === 0) return 0
+  return (currentSearch.value.contracts_processed / currentSearch.value.total_contracts_found) * 100
 })
 
 // Mock data generator
-const generateMockResult = (index: number): SearchResult => ({
-  id: `result_${Date.now()}_${index}`,
-  title: `Search Result ${index + 1}: Example Title`,
-  snippet: 'This is a sample search result snippet that shows relevant content from the source.',
-  source: ['web', 'database', 'api'][Math.floor(Math.random() * 3)],
-  relevance: Math.random(),
-  timestamp: Date.now() - Math.random() * 60000
+const generateMockResult = (index: number): ContractResult => ({
+  id: `contract_${Date.now()}_${index}`,
+  reestr_number: `0123456789${index}`,
+  contract_number: `CTR-2024-${String(index + 1).padStart(3, '0')}`,
+  contract_date: '2024-01-15',
+  contract_year: '2024',
+  match_type: ['EXACT', 'PARTIAL', 'SIMILAR', 'NO_MATCH'][Math.floor(Math.random() * 4)],
+  ai_score: Math.floor(Math.random() * 100),
+  supplier_name: ['ООО "ТехноПром"', 'АО "Электросила"', 'ЗАО "МеталлСервис"'][Math.floor(Math.random() * 3)],
+  customer_name: 'Государственное учреждение',
+  contract_price: Math.floor(Math.random() * 1000000) + 10000,
+  currency: 'RUB',
+  source_system: 'zakupki.gov.ru',
+  source_url: `https://zakupki.gov.ru/epz/order/notice/ea44/view/common-info.html?regNumber=0123456789${index}`,
+  scraped_at: new Date().toISOString()
 })
 
-const generateMockEvent = (type: SearchEvent['type'], message: string): SearchEvent => ({
+const generateMockEvent = (type: SearchEvent['type'], message: string, data?: any): SearchEvent => ({
   type,
   message,
   timestamp: Date.now(),
-  data: {}
+  data
 })
 
 // Watch for searchId changes
@@ -249,116 +295,124 @@ const resetView = () => {
 const loadSearchInfo = async () => {
   isLoading.value = true
   try {
-    // Simulate API call to get search info
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    currentSearch.value = {
-      query: 'Example search query',
-      type: 'web',
-      status: 'running',
-      progress: 25
-    }
-    
-    // Add initial mock results for demonstration
-    for (let i = 0; i < 5; i++) {
-      results.value.push(generateMockResult(i))
-    }
+    // Call the API to get search info
+    const searchInfo = await api.real.getSearchById(searchId)
+    currentSearch.value = searchInfo
     
     // Add initial events
     events.value = [
-      generateMockEvent('info', 'Search started'),
-      generateMockEvent('info', 'Connected to data sources'),
-      generateMockEvent('result', 'Found 5 initial results'),
-      generateMockEvent('progress', 'Processing 25% complete')
+      generateMockEvent('info', `Search started: ${searchInfo.input_source}`),
+      generateMockEvent('info', `KTRU Code: ${searchInfo.ktru_code || 'Not specified'}`),
+      generateMockEvent('status', `Status: ${searchInfo.status}`),
+      generateMockEvent('progress', `Processed ${searchInfo.contracts_processed}/${searchInfo.total_contracts_found} contracts`)
     ]
+    
+    // TODO: In a real implementation, we would fetch contract results from the backend
+    // For now, add mock results for demonstration
+    for (let i = 0; i < Math.min(5, searchInfo.limit_contracts); i++) {
+      results.value.push(generateMockResult(i))
+    }
+    
   } catch (error) {
     console.error('Failed to load search info:', error)
     events.value.push(generateMockEvent('error', 'Failed to load search information'))
+    
+    // Fall back to mock data
+    try {
+      const mockInfo = await api.mock.getSearchById(searchId)
+      currentSearch.value = mockInfo
+    } catch (mockError) {
+      console.error('Failed to load mock data:', mockError)
+    }
   } finally {
     isLoading.value = false
   }
 }
 
 const connectToEventStream = (searchId: string) => {
-  // In a real implementation, this would connect to /api/search/{id}/events
-  // For now, simulate the connection with mock events
+  // Use the EventSource from the API service
+  const searchEventSource = new api.EventSource()
   
-  isConnected.value = true
+  searchEventSource.connect(searchId)
   
-  // Simulate EventSource connection
-  const simulateEventStream = () => {
-    if (!props.searchId || props.searchId !== searchId) return
-    
-    // Simulate receiving events
-    const eventTypes: SearchEvent['type'][] = ['info', 'result', 'progress', 'warning']
-    const eventMessages = [
-      'Processing batch of results',
-      'Found new matching document',
-      'Updated search progress',
-      'Connected to additional data source',
-      'Filtering results by relevance',
-      'Exporting intermediate results'
-    ]
-    
-    const interval = setInterval(() => {
-      if (!props.searchId || props.searchId !== searchId) {
-        clearInterval(interval)
-        return
-      }
-      
-      const type = eventTypes[Math.floor(Math.random() * eventTypes.length)]
-      const message = eventMessages[Math.floor(Math.random() * eventMessages.length)]
-      
-      const event = generateMockEvent(type, message)
-      events.value.unshift(event)
-      
-      // Keep only last 20 events
-      if (events.value.length > 20) {
-        events.value = events.value.slice(0, 20)
-      }
-      
-      // Occasionally add a new result
-      if (type === 'result' && Math.random() > 0.7) {
-        const newResult = generateMockResult(results.value.length)
-        results.value.unshift(newResult)
-        
-        // Update progress
-        if (currentSearch.value) {
-          currentSearch.value.progress = Math.min(100, currentSearch.value.progress + 5)
-          if (currentSearch.value.progress >= 100) {
-            currentSearch.value.status = 'completed'
-            clearInterval(interval)
-            isConnected.value = false
-            events.value.unshift(generateMockEvent('info', 'Search completed successfully'))
-          }
-        }
-      }
-      
-      // Update progress
-      if (type === 'progress' && currentSearch.value) {
-        currentSearch.value.progress = Math.min(100, currentSearch.value.progress + 1)
-      }
-      
-    }, 2000 + Math.random() * 3000)
-    
-    // Cleanup on unmount or search change
-    onUnmounted(() => {
-      clearInterval(interval)
-    })
-  }
+  searchEventSource.on('connect', (data: any) => {
+    isConnected.value = true
+    events.value.unshift(generateMockEvent('info', 'Connected to real-time updates', data))
+  })
   
-  simulateEventStream()
+  searchEventSource.on('progress', (data: any) => {
+    events.value.unshift(generateMockEvent('progress', `Progress: ${data.processed_count}/${data.total} contracts`, data))
+    
+    // Update current search progress
+    if (currentSearch.value) {
+      currentSearch.value.contracts_processed = data.processed_count
+      currentSearch.value.total_contracts_found = data.total
+    }
+  })
+  
+  searchEventSource.on('status', (data: any) => {
+    events.value.unshift(generateMockEvent('status', `Status: ${data.status}`, data))
+    
+    // Update current search status
+    if (currentSearch.value && data.status) {
+      currentSearch.value.status = data.status.toUpperCase()
+    }
+  })
+  
+  searchEventSource.on('result', (data: any) => {
+    events.value.unshift(generateMockEvent('result', 'New contract result found', data))
+    
+    // Add the new result to the results list
+    // Note: In a real implementation, data would contain the contract result
+    // For now, we'll add a mock result
+    const newResult = generateMockResult(results.value.length)
+    results.value.unshift(newResult)
+  })
+  
+  searchEventSource.on('error', (data: any) => {
+    events.value.unshift(generateMockEvent('error', `Error: ${data.error || 'Unknown error'}`, data))
+  })
+  
+  searchEventSource.on('complete', (data: any) => {
+    events.value.unshift(generateMockEvent('info', 'Search completed', data))
+    isConnected.value = false
+    
+    // Update current search status
+    if (currentSearch.value) {
+      currentSearch.value.status = 'COMPLETED'
+    }
+  })
+  
+  searchEventSource.on('disconnect', () => {
+    isConnected.value = false
+    events.value.unshift(generateMockEvent('info', 'Disconnected from real-time updates'))
+  })
+  
+  // Store the event source for cleanup
+  eventSource.value = searchEventSource as any
 }
 
 const statusClass = (status: string) => {
   const classes: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    running: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800',
-    stopped: 'bg-gray-100 text-gray-800'
+    'PENDING': 'bg-yellow-100 text-yellow-800',
+    'RUNNING': 'bg-blue-100 text-blue-800',
+    'COMPLETED': 'bg-green-100 text-green-800',
+    'FAILED': 'bg-red-100 text-red-800',
+    'STOPPED': 'bg-gray-100 text-gray-800',
+    'PROCESSING': 'bg-blue-100 text-blue-800',
+    'CANCELLED': 'bg-gray-100 text-gray-800'
   }
   return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+const matchTypeClass = (matchType: string) => {
+  const classes: Record<string, string> = {
+    'EXACT': 'bg-green-100 text-green-800',
+    'PARTIAL': 'bg-yellow-100 text-yellow-800',
+    'SIMILAR': 'bg-blue-100 text-blue-800',
+    'NO_MATCH': 'bg-gray-100 text-gray-800'
+  }
+  return classes[matchType] || 'bg-gray-100 text-gray-800'
 }
 
 const eventClass = (type: string) => {
@@ -367,7 +421,8 @@ const eventClass = (type: string) => {
     warning: 'text-yellow-600',
     error: 'text-red-600',
     result: 'text-green-600',
-    progress: 'text-purple-600'
+    progress: 'text-purple-600',
+    status: 'text-indigo-600'
   }
   return classes[type] || 'text-gray-600'
 }
@@ -377,6 +432,7 @@ const formatTime = (timestamp: number) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
+<<<<<<< HEAD
 const stopSearch = async () => {
   if (!props.searchId) return
   try {
@@ -394,12 +450,25 @@ const stopSearch = async () => {
 const downloadReport = () => {
   if (!props.searchId) return
   window.open(`/api/search/${props.searchId}/report`, '_blank')
+=======
+const formatCurrency = (amount: number | null) => {
+  if (amount === null) return 'N/A'
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount)
+>>>>>>> 7c5e00a77cfb12ace2395c0342959a4e695731f6
 }
 
 // Cleanup on component unmount
 onUnmounted(() => {
   if (eventSource.value) {
-    eventSource.value.close()
+    // The EventSource class has a disconnect method
+    if ('disconnect' in eventSource.value && typeof eventSource.value.disconnect === 'function') {
+      eventSource.value.disconnect()
+    }
   }
 })
 </script>

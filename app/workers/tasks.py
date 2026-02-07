@@ -52,8 +52,8 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
             task_self.update_state(state='FAILURE', meta={'error': f'Search request {search_id} not found'})
             return {'status': 'error', 'message': f'Search request {search_id} not found'}
         
-        # Update status to RUNNING
-        search_request.status = SearchStatus.PROCESSING
+        # Update status to RUNNING (using the new status)
+        search_request.status = SearchStatus.RUNNING
         search_request.processing_started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         db.commit()
         
@@ -71,6 +71,10 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
         if search_request.date_to:
             date_to = datetime.strptime(search_request.date_to, "%Y-%m-%d").date()
         
+        # Calculate max_pages dynamically based on limit_contracts (50 contracts per page)
+        import math
+        max_pages = math.ceil(search_request.limit_contracts / 50)
+        
         # Create parser searcher and search for contracts
         parser_searcher = ParserZakupkiSearcher()
         search_result = parser_searcher.search(
@@ -79,7 +83,7 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
             ktru=search_request.ktru_code,
             date_from=date_from,
             date_to=date_to,
-            max_pages=1  # Start with 1 page, we can adjust based on limit
+            max_pages=max_pages
         )
         
         # Update total contracts found
@@ -108,10 +112,10 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
             # Stop signal detected - update status to CANCELLED
             search_request.status = SearchStatus.CANCELLED
             db.commit()
-            
+
             # Clear the stop signal
             redis_client.delete(stop_signal_key)
-            
+
             return {
                 'status': 'cancelled',
                 'message': f'Search {search_id} cancelled by stop signal before processing',
@@ -119,20 +123,23 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                 'processed': 0
             }
         
+        # Extract user's technical specification for comparison
+        user_technical_spec = search_request.technical_specification
+        
         processed_count = 0
         for i, contract_card in enumerate(contracts_to_process):
             # Step 3: Check Stop Signal
             if redis_client.exists(stop_signal_key):
-                # Stop signal detected - update status to CANCELLED
-                search_request.status = SearchStatus.CANCELLED
+                # Stop signal detected - update status to STOPPED (using the new status)
+                search_request.status = SearchStatus.STOPPED
                 db.commit()
                 
                 # Clear the stop signal
                 redis_client.delete(stop_signal_key)
                 
                 return {
-                    'status': 'cancelled',
-                    'message': f'Search {search_id} cancelled by stop signal',
+                    'status': 'stopped',
+                    'message': f'Search {search_id} stopped by user',
                     'progress': i / total_to_process,
                     'processed': i
                 }
@@ -171,11 +178,11 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                     # For now, we'll use a placeholder
                     spec_text = f"Contract {contract_card.reestr_number} details"
                 
-                # Use LLM to extract specifications
-                extracted_specs = {}
+                # Use LLM to extract specifications from contract
+                contract_extracted_specs = {}
                 if spec_text:
                     try:
-                        extracted_specs = llm_engine.extract_specs(
+                        contract_extracted_specs = llm_engine.extract_specs(
                             spec_text,
                             search_request.ktru_code
                         )
@@ -183,10 +190,23 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                         # Log LLM extraction error but continue
                         print(f"LLM extraction error for {contract_card.reestr_number}: {e}")
                 
-                # Compare with target specifications if we have NMC value
+                # Use LLM to extract specifications from user's technical specification
+                user_extracted_specs = {}
+                if user_technical_spec:
+                    try:
+                        user_extracted_specs = llm_engine.extract_specs(
+                            user_technical_spec,
+                            search_request.ktru_code
+                        )
+                    except Exception as e:
+                        # Log LLM extraction error but continue
+                        print(f"LLM extraction error for user specs: {e}")
+                
+                # Compare user specs with contract specs
                 ai_score = 0.0
                 match_type = MatchType.NO_MATCH
                 
+<<<<<<< HEAD
                 if extracted_specs:
                     # Placeholder for target specs
                     target_specs = {
@@ -207,6 +227,41 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                             
                     except Exception as e:
                         print(f"LLM comparison error for {contract_card.reestr_number}: {e}")
+=======
+                if contract_extracted_specs and user_extracted_specs:
+                    # Calculate match score using the matcher
+                    try:
+                        # Get technical specs from both
+                        contract_specs = contract_extracted_specs.get('technical_specs', {})
+                        user_specs = user_extracted_specs.get('technical_specs', {})
+                        
+                        # Calculate overall match score
+                        total_score = 0.0
+                        matched_specs = 0
+                        
+                        for key, user_value in user_specs.items():
+                            if key in contract_specs:
+                                contract_value = contract_specs[key]
+                                # Calculate match score for this specification
+                                score = calculate_match_score(str(user_value), str(contract_value))
+                                total_score += score
+                                matched_specs += 1
+                        
+                        if matched_specs > 0:
+                            ai_score = total_score / matched_specs
+                            
+                            # Determine match type based on score
+                            if ai_score >= 90:
+                                match_type = MatchType.EXACT
+                            elif ai_score >= 70:
+                                match_type = MatchType.PARTIAL
+                            elif ai_score >= 50:
+                                match_type = MatchType.SIMILAR
+                            else:
+                                match_type = MatchType.NO_MATCH
+                    except Exception as e:
+                        print(f"Error calculating match score for {contract_card.reestr_number}: {e}")
+>>>>>>> 7c5e00a77cfb12ace2395c0342959a4e695731f6
                 
                 # Step 5: Save ContractResult to DB
                 contract_result = ContractResult(
@@ -230,17 +285,33 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                 db.add(contract_result)
                 db.flush()  # Get the ID for foreign key
                 
-                # Create spec comparison rows if we have extracted specs
-                if extracted_specs and extracted_specs.get('technical_specs'):
-                    for key, value in extracted_specs['technical_specs'].items():
-                        if value:
+                # Create spec comparison rows if we have both contract and user specs
+                if contract_extracted_specs and user_extracted_specs:
+                    contract_specs = contract_extracted_specs.get('technical_specs', {})
+                    user_specs = user_extracted_specs.get('technical_specs', {})
+                    
+                    for key, user_value in user_specs.items():
+                        if key in contract_specs:
+                            contract_value = contract_specs[key]
+                            # Calculate match score for this specification
+                            similarity_score = calculate_match_score(str(user_value), str(contract_value))
+                            
+                            # Determine match status
+                            match_status = MatchStatus.NO_MATCH
+                            if similarity_score >= 90:
+                                match_status = MatchStatus.EXACT_MATCH
+                            elif similarity_score >= 70:
+                                match_status = MatchStatus.PARTIAL_MATCH
+                            elif similarity_score >= 50:
+                                match_status = MatchStatus.SIMILAR
+                            
                             spec_row = SpecComparisonRow(
                                 contract_result_id=contract_result.id,
                                 name=key,
-                                target_value=str(value),
-                                actual_value=str(value),  # In real implementation, would compare with target
-                                match_status=MatchStatus.MATCH,
-                                similarity_score=100.0
+                                target_value=str(user_value),
+                                actual_value=str(contract_value),
+                                match_status=match_status,
+                                similarity_score=similarity_score
                             )
                             db.add(spec_row)
                 

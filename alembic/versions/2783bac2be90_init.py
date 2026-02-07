@@ -64,7 +64,7 @@ def upgrade() -> None:
     sa.Column('source_system', sa.String(length=100), nullable=True),
     sa.Column('source_url', sa.Text(), nullable=True),
     sa.Column('scraped_at', sa.String(length=20), nullable=True),
-    sa.Column('raw_data_json', postgresql.JSONB(astext_type=Text()), nullable=True),
+    sa.Column('raw_data_json', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('verification_notes', sa.Text(), nullable=True),
     sa.Column('id', sa.UUID(), nullable=False),
