@@ -17,7 +17,7 @@ def create_test_search_request():
     search.id = uuid.uuid4()
     search.input_source = "test_source"
     search.ktru_code = "123456"
-    search.status = SearchStatus.PENDING
+    search.status = SearchStatus.PENDING.value  # Use .value for string
     search.limit_contracts = 5
     search.selected_contract_ids = None
     search.nmc_value = None
@@ -131,7 +131,8 @@ def test_create_search():
         mock_task.delay.assert_called_once()
         mock_redis.set.assert_called_once()
         
-        return data["id"]
+        # Store the ID for verification
+        assert data["id"] is not None
 
 def test_create_search_invalid_date():
     """Test creating search with invalid date format"""
@@ -201,25 +202,79 @@ def test_stop_search():
         "limit_contracts": 3
     }
     
-    create_response = client.post("/api/search", json=search_data)
-    search_id = create_response.json()["id"]
+    # Mock redis and celery for create search
+    with patch('app.api.endpoints.search.redis_client') as mock_redis, \
+         patch('app.api.endpoints.search.execute_search_task') as mock_task:
+        
+        mock_task.delay.return_value = Mock(id="task-123")
+        mock_redis.set = Mock()
+        
+        # Mock database operations
+        new_search = Mock(spec=SearchRequest)
+        new_search.id = uuid.uuid4()
+        new_search.input_source = "test_source_3"
+        new_search.ktru_code = None
+        new_search.status = SearchStatus.PENDING.value
+        new_search.limit_contracts = 3
+        new_search.selected_contract_ids = None
+        new_search.nmc_value = None
+        new_search.search_query = None
+        new_search.region_filter = None
+        new_search.date_from = None
+        new_search.date_to = None
+        new_search.price_min = None
+        new_search.price_max = None
+        new_search.total_contracts_found = 0
+        new_search.contracts_processed = 0
+        new_search.processing_started_at = None
+        new_search.processing_completed_at = None
+        new_search.error_message = None
+        new_search.retry_count = 0
+        new_search.ai_model_version = None
+        new_search.confidence_threshold = 0.7
+        new_search.created_at = "2024-01-01T00:00:00"
+        new_search.updated_at = "2024-01-01T00:00:00"
+        
+        # Mock refresh to set the search object
+        def mock_refresh(obj):
+            # Simulate setting attributes
+            for attr, value in new_search.__dict__.items():
+                if not attr.startswith('_'):
+                    setattr(obj, attr, value)
+        
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
+        mock_db.refresh = Mock(side_effect=mock_refresh)
+        
+        create_response = client.post("/api/search", json=search_data)
+        search_id = create_response.json()["id"]
     
-    # Stop the search
-    response = client.post(f"/api/search/{search_id}/stop")
-    
-    assert response.status_code == 200
-    data = response.json()
-    
-    assert data["message"] == f"Stop signal sent for search {search_id}"
-    assert data["search_id"] == search_id
+    # Now test stopping the search with mocked redis
+    with patch('app.api.endpoints.search.redis_client') as mock_redis:
+        mock_redis.set = Mock()
+        
+        # Stop the search
+        response = client.post(f"/api/search/{search_id}/stop")
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["message"] == f"Stop signal sent for search {search_id}"
+        assert data["search_id"] == search_id
+        
+        # Verify redis was called to set stop signal
+        mock_redis.set.assert_called_once_with(f"stop_signal:{search_id}", "1", ex=3600)
 
 @pytest.mark.integration
 def test_search_events_stream():
     """Test connecting to SSE stream"""
-    # Create a test search request
+    # Create a test search request with COMPLETED status
     test_search = create_test_search_request()
     test_search.input_source = "test_source_4"
     test_search.limit_contracts = 2
+    test_search.status = SearchStatus.COMPLETED.value  # This should be "completed"
+    test_search.contracts_processed = 5
+    test_search.total_contracts_found = 5
     
     # Mock the database query to return our test search
     mock_query = Mock()
@@ -243,20 +298,36 @@ def test_search_events_stream():
         mock_session.query.return_value = mock_session_query
         mock_session_query.filter.return_value = mock_session_filter
         mock_session_filter.first.return_value = test_search
-        mock_session.refresh = Mock()
         
-        # Mock redis client
-        with patch('app.api.endpoints.search.redis_client') as mock_redis:
+        # Mock refresh to return the search with COMPLETED status
+        def mock_refresh(search_obj):
+            # Update the search object with completed status
+            search_obj.status = SearchStatus.COMPLETED.value
+            search_obj.contracts_processed = 5
+            search_obj.total_contracts_found = 5
+        
+        mock_session.refresh = Mock(side_effect=mock_refresh)
+        
+        # Mock redis client and time.sleep
+        with patch('app.api.endpoints.search.redis_client') as mock_redis, \
+             patch('app.api.endpoints.search.time.sleep') as mock_sleep:
             mock_redis.get.return_value = None
+            mock_sleep.return_value = None  # Make sleep instant
             
             # Connect to events stream
             with client.stream("GET", f"/api/search/{test_search.id}/events") as response:
-                # Read first event
+                # Read events
                 lines = []
                 for line in response.iter_lines():
                     if line:
-                        lines.append(line)
-                        if len(lines) >= 2:  # Get at least initial connection event
+                        # Handle both bytes and str
+                        if isinstance(line, bytes):
+                            line_str = line.decode('utf-8')
+                        else:
+                            line_str = line
+                        lines.append(line_str)
+                        # Break after we get the completed status
+                        if '"status":"completed"' in line_str:
                             break
                 
                 # Should have received some events
@@ -271,6 +342,10 @@ def test_search_events_stream():
                 event_json = json.loads(event_data[6:])
                 assert "status" in event_json
                 assert event_json.get("search_id") == str(test_search.id)
+                
+                # Check that we got a completed status
+                completed_found = any('"status":"completed"' in line for line in lines)
+                assert completed_found, "Should have received completed status"
 
 @pytest.mark.integration
 def test_search_events_not_found():

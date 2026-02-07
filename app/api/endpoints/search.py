@@ -77,8 +77,9 @@ class SearchResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 @router.post("/api/search", response_model=SearchResponse, status_code=status.HTTP_201_CREATED)
 async def create_search(
