@@ -40,6 +40,7 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
     redis_client = get_redis_client()
     stop_signal_key = f"stop_signal:{search_id}"
     
+    db = None  # Initialize db to None
     try:
         # Get database session
         db = get_db_session()
@@ -93,7 +94,6 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
             search_request.status = SearchStatus.COMPLETED
             search_request.processing_completed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             db.commit()
-            db.close()
             return {
                 'status': 'completed',
                 'message': f'Search {search_id} completed - no contracts found',
@@ -103,6 +103,22 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
         # Create detail searcher for fetching contract details
         detail_searcher = DetailZakupkiSearcher(search_id)
         
+        # Check for stop signal before starting processing
+        if redis_client.exists(stop_signal_key):
+            # Stop signal detected - update status to CANCELLED
+            search_request.status = SearchStatus.CANCELLED
+            db.commit()
+            
+            # Clear the stop signal
+            redis_client.delete(stop_signal_key)
+            
+            return {
+                'status': 'cancelled',
+                'message': f'Search {search_id} cancelled by stop signal before processing',
+                'progress': 0,
+                'processed': 0
+            }
+        
         processed_count = 0
         for i, contract_card in enumerate(contracts_to_process):
             # Step 3: Check Stop Signal
@@ -110,7 +126,6 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                 # Stop signal detected - update status to CANCELLED
                 search_request.status = SearchStatus.CANCELLED
                 db.commit()
-                db.close()
                 
                 # Clear the stop signal
                 redis_client.delete(stop_signal_key)
@@ -172,13 +187,16 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                 ai_score = 0.0
                 match_type = MatchType.NO_MATCH
                 
-                if extracted_specs and search_request.nmc_value:
-                    # In a real implementation, we would compare with target specs
-                    # For now, we'll calculate a simple score based on price if available
-                    contract_price = contract_card.price
-                    if contract_price and search_request.nmc_value:
-                        price_ratio = min(contract_price, search_request.nmc_value) / max(contract_price, search_request.nmc_value)
-                        ai_score = price_ratio * 100
+                if extracted_specs:
+                    # Placeholder for target specs
+                    target_specs = {
+                        "product_name": search_request.ktru_code,
+                        "technical_specs": {}
+                    }
+                    
+                    try:
+                        comparison_result = llm_engine.compare_specs(target_specs, extracted_specs)
+                        ai_score = comparison_result.get('overall_match_score', 0.0) * 100
                         
                         if ai_score >= 90:
                             match_type = MatchType.EXACT
@@ -186,6 +204,9 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
                             match_type = MatchType.PARTIAL
                         elif ai_score >= 50:
                             match_type = MatchType.SIMILAR
+                            
+                    except Exception as e:
+                        print(f"LLM comparison error for {contract_card.reestr_number}: {e}")
                 
                 # Step 5: Save ContractResult to DB
                 contract_result = ContractResult(
@@ -235,13 +256,13 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
             except Exception as e:
                 # Log error but continue with next contract
                 print(f"Error processing contract {contract_card.reestr_number}: {e}")
+                db.rollback()
                 continue
         
         # Step 7: Finalize: Update Status -> DONE. Save global stats.
         search_request.status = SearchStatus.COMPLETED
         search_request.processing_completed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         db.commit()
-        db.close()
         
         # Clean up
         detail_searcher.close()
@@ -263,6 +284,11 @@ def _execute_search_task_logic(task_self, search_id: uuid.UUID):
         # General error
         task_self.update_state(state='FAILURE', meta={'error': str(e)})
         return {'status': 'error', 'message': f'Unexpected error: {str(e)}'}
+    
+    finally:
+        # Ensure the database session is closed
+        if db:
+            db.close()
 
 
 @celery_app.task

@@ -6,16 +6,17 @@ from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
 
+import time
 import httpx
 from bs4 import BeautifulSoup
 import pandas as pd
-
-
+ 
+ 
 class ZakupkiSearcher:
     """Scraper for contract details from zakupki.gov.ru"""
-    
+     
     BASE_URL = "https://zakupki.gov.ru"
-    
+     
     def __init__(self, search_id: uuid.UUID, storage_base: str = "storage/temp"):
         """
         Initialize ZakupkiSearcher
@@ -27,7 +28,27 @@ class ZakupkiSearcher:
         self.search_id = search_id
         self.storage_base = Path(storage_base)
         self.client = httpx.Client(timeout=30.0, follow_redirects=True)
-        
+         
+    def _make_request(self, url: str, retries: int = 3, delay: int = 2) -> httpx.Response:
+        """Make a request with retries and delay"""
+        for i in range(retries):
+            try:
+                time.sleep(1)  # Rate limiting
+                response = self.client.get(url)
+                response.raise_for_status()
+                return response
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in [404, 502, 503]:
+                    if i < retries - 1:
+                        time.sleep(delay)
+                        continue
+                raise
+            except httpx.RequestError as e:
+                if i < retries - 1:
+                    time.sleep(delay)
+                    continue
+                raise
+     
     def fetch_contract_card(self, reestr_number: str) -> Dict:
         """
         Fetch contract card details from common-info.html
@@ -42,8 +63,7 @@ class ZakupkiSearcher:
         url = f"{self.BASE_URL}/epz/order/notice/ea44/view/common-info.html?regNumber={reestr_number}"
         
         try:
-            response = self.client.get(url)
-            response.raise_for_status()
+            response = self._make_request(url)
             
             # Parse HTML
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -114,7 +134,7 @@ class ZakupkiSearcher:
         
         for url in urls_to_try:
             try:
-                response = self.client.get(url)
+                response = self._make_request(url)
                 if response.status_code == 200:
                     objects_html = response.text
                     objects_url = url
@@ -204,8 +224,7 @@ class ZakupkiSearcher:
         url = f"{self.BASE_URL}/epz/order/notice/ea44/view/documents.html?regNumber={reestr_number}"
         
         try:
-            response = self.client.get(url)
-            response.raise_for_status()
+            response = self._make_request(url)
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
@@ -269,8 +288,7 @@ class ZakupkiSearcher:
             filepath = contract_dir / filename
             
             # Download file
-            response = self.client.get(attachment['url'])
-            response.raise_for_status()
+            response = self._make_request(attachment['url'])
             
             with open(filepath, 'wb') as f:
                 f.write(response.content)
@@ -282,72 +300,72 @@ class ZakupkiSearcher:
             return None
     
     def parse_contract_details(self, reestr_number: str, ktru_code: Optional[str] = None) -> Dict:
-        """
-        Parse complete contract details
-        
-        Args:
-            reestr_number: Contract registry number
-            ktru_code: Optional KTRU code to filter by
+            """
+            Parse complete contract details
             
-        Returns:
-            Complete contract details dictionary
-        """
-        result = {
-            'reestr_number': reestr_number,
-            'success': False,
-            'error': None,
-            'contract_card': None,
-            'objects': None,
-            'attachments': [],
-            'downloaded_files': [],
-            'warnings': []
-        }
-        
-        try:
-            # Fetch contract card
-            result['contract_card'] = self.fetch_contract_card(reestr_number)
-            
-            # Fetch objects
-            result['objects'] = self.fetch_contract_objects(reestr_number, ktru_code)
-            
-            # Check for price not found
-            if not result['objects'].get('unit_price'):
-                result['warnings'].append('Price not found in objects table')
-            
-            # Check for specification text not found
-            if not result['objects'].get('specification_text'):
-                result['warnings'].append('Specification text not found in objects table')
-            
-            # Check if we need to look for attachments
-            need_attachments = (
-                not result['objects'].get('specification_text') or
-                not result['objects'].get('unit_price') or
-                self._is_recent_contract(result['contract_card'])
-            )
-            
-            if need_attachments:
-                # Fetch and download attachments
-                attachments = self.fetch_attachments(reestr_number)
-                result['attachments'] = attachments
+            Args:
+                reestr_number: Contract registry number
+                ktru_code: Optional KTRU code to filter by
                 
-                for attachment in attachments:
-                    filepath = self.download_attachment(attachment, reestr_number)
-                    if filepath:
-                        result['downloaded_files'].append(filepath)
+            Returns:
+                Complete contract details dictionary
+            """
+            result = {
+                'reestr_number': reestr_number,
+                'success': False,
+                'error': None,
+                'contract_card': None,
+                'objects': None,
+                'attachments': [],
+                'downloaded_files': [],
+                'warnings': []
+            }
+            
+            try:
+                # Fetch contract card
+                result['contract_card'] = self.fetch_contract_card(reestr_number)
                 
-                # Check if attachments were found
-                if not attachments:
-                    result['warnings'].append('No attachments found for missing price/specification')
-                elif not result['downloaded_files']:
-                    result['warnings'].append('Attachments found but could not be downloaded')
+                # Fetch objects
+                result['objects'] = self.fetch_contract_objects(reestr_number, ktru_code)
+                
+                # Check for price not found
+                if not result['objects'].get('unit_price'):
+                    result['warnings'].append('Price not found in objects table')
+                
+                # Check for specification text not found
+                if not result['objects'].get('specification_text'):
+                    result['warnings'].append('Specification text not found in objects table')
+                
+                # Check if we need to look for attachments
+                need_attachments = (
+                    not result['objects'].get('specification_text') or
+                    not result['objects'].get('unit_price') or
+                    self._is_recent_contract(result['contract_card'])
+                )
+                
+                if need_attachments:
+                    # Fetch and download attachments
+                    attachments = self.fetch_attachments(reestr_number)
+                    result['attachments'] = attachments
+                    
+                    for attachment in attachments:
+                        filepath = self.download_attachment(attachment, reestr_number)
+                        if filepath:
+                            result['downloaded_files'].append(filepath)
+                    
+                    # Check if attachments were found
+                    if not attachments:
+                        result['warnings'].append('No attachments found for missing price/specification')
+                    elif not result['downloaded_files']:
+                        result['warnings'].append('Attachments found but could not be downloaded')
+                
+                result['success'] = True
+                
+            except Exception as e:
+                result['error'] = str(e)
+                result['success'] = False
             
-            result['success'] = True
-            
-        except Exception as e:
-            result['error'] = str(e)
-            result['success'] = False
-        
-        return result
+            return result
     
     def _is_recent_contract(self, contract_details: Dict) -> bool:
         """Check if contract is from 2025 or later"""

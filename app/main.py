@@ -22,9 +22,10 @@ app.add_middleware(
 # Include routers
 app.include_router(search.router)
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Service Alpha API"}
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 
 @app.get("/health")
 async def health_check():

@@ -29,7 +29,21 @@
             </div>
           </div>
           <div class="text-right">
-            <div class="text-2xl font-bold text-blue-600">{{ results.length.toLocaleString() }}</div>
+            <button
+              v-if="currentSearch?.status === 'running'"
+              @click="stopSearch"
+              class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+            >
+              Stop Search
+            </button>
+            <button
+              v-if="currentSearch?.status === 'completed'"
+              @click="downloadReport"
+              class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+            >
+              Download Report
+            </button>
+            <div class="text-2xl font-bold text-blue-600 mt-2">{{ results.length.toLocaleString() }}</div>
             <div class="text-sm text-gray-500">Results Found</div>
           </div>
         </div>
@@ -213,7 +227,7 @@ watch(() => props.searchId, (newSearchId, oldSearchId) => {
   if (newSearchId !== oldSearchId) {
     resetView()
     if (newSearchId) {
-      loadSearchInfo(newSearchId)
+      loadSearchInfo()
       connectToEventStream(newSearchId)
     }
   }
@@ -232,7 +246,7 @@ const resetView = () => {
   }
 }
 
-const loadSearchInfo = async (searchId: string) => {
+const loadSearchInfo = async () => {
   isLoading.value = true
   try {
     // Simulate API call to get search info
@@ -361,6 +375,25 @@ const eventClass = (type: string) => {
 const formatTime = (timestamp: number) => {
   const date = new Date(timestamp)
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+const stopSearch = async () => {
+  if (!props.searchId) return
+  try {
+    await fetch(`/api/search/${props.searchId}/stop`, { method: 'POST' })
+    events.value.unshift(generateMockEvent('info', 'Stop signal sent'))
+    if (currentSearch.value) {
+      currentSearch.value.status = 'stopped'
+    }
+  } catch (error) {
+    console.error('Failed to stop search:', error)
+    events.value.unshift(generateMockEvent('error', 'Failed to send stop signal'))
+  }
+}
+
+const downloadReport = () => {
+  if (!props.searchId) return
+  window.open(`/api/search/${props.searchId}/report`, '_blank')
 }
 
 // Cleanup on component unmount

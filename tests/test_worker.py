@@ -123,7 +123,7 @@ class TestExecuteSearchTask:
                     # Execute task - call the underlying function directly
                     result = _execute_search_task_logic(mock_task, sample_search_request.id)
                     
-                    # Verify stop signal check
+                    # Verify stop signal was checked
                     expected_stop_key = f"stop_signal:{sample_search_request.id}"
                     mock_redis_client.exists.assert_called_with(expected_stop_key)
                     
@@ -131,7 +131,7 @@ class TestExecuteSearchTask:
                     assert sample_search_request.status == SearchStatus.CANCELLED
                     
                     # Verify stop signal was cleared
-                    mock_redis_client.delete.assert_called_with(expected_stop_key)
+                    mock_redis_client.delete.assert_called_with(f"stop_signal:{sample_search_request.id}")
                     
                     # Verify result
                     assert result['status'] == 'cancelled'

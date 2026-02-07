@@ -1,0 +1,2220 @@
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>НМЦ | Поиск контрактов ЕИС (мок)</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:#e2e8f0;
+      --shadow:0 10px 30px rgba(15,23,42,.08);
+      --primary:#2563eb;
+      --primary-weak:#dbeafe;
+      --success:#16a34a;
+      --success-weak:#dcfce7;
+      --warn:#d97706;
+      --warn-weak:#ffedd5;
+      --danger:#dc2626;
+      --danger-weak:#fee2e2;
+      --focus:0 0 0 4px rgba(37,99,235,.18);
+      --radius:16px;
+      --radius-sm:12px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background: radial-gradient(1200px 900px at 20% 0%, #eef2ff 0%, transparent 55%),
+                  radial-gradient(1100px 800px at 80% 20%, #eff6ff 0%, transparent 60%),
+                  var(--bg);
+    }
+    a{color:inherit}
+    button, input, select, textarea{font:inherit}
+    .app{
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar{
+      position:sticky; top:0; z-index:50;
+      background: rgba(246,247,251,.75);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar-inner{
+      max-width:1400px;
+      margin:0 auto;
+      padding:14px 18px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.7);
+      border:1px solid var(--border);
+    }
+    .logo{
+      width:34px;height:34px;border-radius:10px;
+      background: linear-gradient(135deg, var(--primary) 0%, #60a5fa 55%, #93c5fd 100%);
+      box-shadow: 0 12px 26px rgba(37,99,235,.22);
+    }
+    .brand h1{
+      font-size:14px; margin:0; line-height:1.1;
+    }
+    .brand p{
+      margin:0; font-size:12px; color:var(--muted);
+    }
+    .pill{
+      margin-left:auto;
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.7);
+    }
+    .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: var(--success);
+      box-shadow: 0 0 0 6px rgba(22,163,74,.12);
+    }
+    .pill span{font-size:12px;color:var(--muted)}
+    .pill b{font-size:12px}
+    .container{
+      width:100%;
+      max-width:1400px;
+      margin:0 auto;
+      padding:18px;
+      flex:1;
+    }
+
+    /* Layout: main content + right search module */
+    .layout{
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 1100px){
+      .layout{grid-template-columns: 1fr 340px}
+    }
+    @media (max-width: 980px){
+      .layout{grid-template-columns: 1fr}
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .card-header{
+      padding:14px 14px 0 14px;
+    }
+    .card-title{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    }
+    .card-title h2{margin:0;font-size:16px}
+    .card-title p{margin:4px 0 0 0; font-size:12px; color:var(--muted)}
+    .card-body{padding:14px}
+    .divider{height:1px;background:var(--border); margin:12px 0}
+
+    /* Tabs */
+    .tabs{
+      display:flex; gap:8px; flex-wrap:wrap;
+      padding:12px 12px 0 12px;
+    }
+    .tab{
+      border:1px solid var(--border);
+      background: #fff;
+      padding:10px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      display:flex; align-items:center; gap:8px;
+      transition: transform .05s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+    }
+    .tab:active{transform: translateY(1px)}
+    .tab[aria-selected="true"]{
+      border-color: rgba(37,99,235,.25);
+      background: linear-gradient(0deg, rgba(37,99,235,.08), rgba(37,99,235,.08)), #fff;
+      box-shadow: 0 0 0 4px rgba(37,99,235,.10);
+    }
+    .badge{
+      font-size:12px;
+      color: var(--muted);
+      background: #f1f5f9;
+      border:1px solid var(--border);
+      padding:2px 8px;
+      border-radius:999px;
+    }
+
+    /* Buttons & inputs */
+    .btn{
+      border:1px solid var(--border);
+      background:#fff;
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px;
+      transition: transform .05s ease, box-shadow .12s ease, border-color .12s ease;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn:focus{outline:none; box-shadow: var(--focus)}
+    .btn.primary{
+      border-color: rgba(37,99,235,.28);
+      background: linear-gradient(0deg, rgba(37,99,235,.08), rgba(37,99,235,.08)), #fff;
+      color: var(--text);
+    }
+    .btn.danger{
+      border-color: rgba(220,38,38,.25);
+      background: linear-gradient(0deg, rgba(220,38,38,.07), rgba(220,38,38,.07)), #fff;
+    }
+    .btn.ghost{
+      background: transparent;
+      border-color: transparent;
+    }
+    .btn.small{padding:8px 10px; border-radius:10px; font-size:13px}
+    .btn.icon{
+      width:38px;height:38px; justify-content:center;
+      border-radius:12px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:0;
+    }
+    .label{
+      font-size:12px;
+      color:var(--muted);
+      display:flex; align-items:center; gap:8px;
+    }
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+      line-height:1.35;
+    }
+    .input, .select, .textarea{
+      width:100%;
+      border:1px solid var(--border);
+      background:#fff;
+      padding:10px 12px;
+      border-radius:12px;
+      outline:none;
+      transition: box-shadow .12s ease, border-color .12s ease;
+      min-width:0;
+    }
+    .input:focus, .select:focus, .textarea:focus{
+      box-shadow: var(--focus);
+      border-color: rgba(37,99,235,.35);
+    }
+    .textarea{min-height:88px; resize:vertical}
+
+    /* Table */
+    .table-wrap{
+      width:100%;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:#fff;
+    }
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      min-width: 980px; /* large screens fill; small screens scroll */
+    }
+    thead th{
+      position:sticky; top:0; z-index:2;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      padding:10px 10px;
+      font-size:12px;
+      color:var(--muted);
+      text-align:left;
+      vertical-align:bottom;
+    }
+    tbody td{
+      border-bottom:1px solid var(--border);
+      padding:12px 10px;
+      font-size:13px;
+      vertical-align:top;
+      background:#fff;
+    }
+    tbody tr:last-child td{border-bottom:none}
+    .row-hover{
+      transition: background .12s ease, transform .06s ease;
+      cursor:pointer;
+    }
+    .row-hover:hover td{
+      background: rgba(37,99,235,.06);
+    }
+    .row-hover:active{
+      transform: translateY(1px);
+    }
+
+    /* Clickable row highlight for history -> results */
+    .row-focus{
+      outline:2px solid rgba(37,99,235,.35);
+      outline-offset:-2px;
+    }
+
+    /* Status chips */
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      white-space:nowrap;
+    }
+    .chip .mini-dot{width:8px;height:8px;border-radius:99px}
+    .chip.success{background: var(--success-weak); border-color: rgba(22,163,74,.20)}
+    .chip.success .mini-dot{background: var(--success)}
+    .chip.warn{background: var(--warn-weak); border-color: rgba(217,119,6,.22)}
+    .chip.warn .mini-dot{background: var(--warn)}
+    .chip.danger{background: var(--danger-weak); border-color: rgba(220,38,38,.22)}
+    .chip.danger .mini-dot{background: var(--danger)}
+    .chip.neutral{background: #f1f5f9}
+    .chip.neutral .mini-dot{background: #94a3b8}
+
+    /* Right search module */
+    .search-module{
+      position:sticky;
+      top:74px;
+      z-index:10;
+    }
+    @media (max-width: 980px){
+      .search-module{position:static}
+    }
+
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+    .grid3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px}
+    @media (max-width: 980px){
+      .grid2, .grid3{grid-template-columns: 1fr}
+    }
+
+    /* File drop */
+    .drop{
+      border:1.5px dashed rgba(100,116,139,.45);
+      border-radius:14px;
+      padding:12px;
+      background: rgba(241,245,249,.55);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .drop strong{font-size:13px}
+    .drop small{display:block;color:var(--muted); margin-top:4px; line-height:1.35}
+    .drop:hover{border-color: rgba(37,99,235,.35)}
+    .file-input{display:none}
+
+    /* Pagination */
+    .pager{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .pager .left, .pager .right{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .pager .meta{font-size:12px;color:var(--muted)}
+
+    /* Popovers (column filters) */
+    .pop{
+      position:fixed;
+      z-index:999;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow: 0 18px 40px rgba(15,23,42,.18);
+      width: 280px;
+      max-width: calc(100vw - 24px);
+      padding:10px;
+      display:none;
+    }
+    .pop[aria-hidden="false"]{display:block}
+    .pop .pop-title{font-size:13px; margin:0 0 8px 0}
+    .pop .pop-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:10px}
+    .checklist{
+      max-height: 220px;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:8px;
+      background:#fff;
+    }
+    .check{
+      display:flex; align-items:center; gap:10px;
+      padding:6px 6px;
+      border-radius:10px;
+    }
+    .check:hover{background: rgba(37,99,235,.06)}
+    .check input{accent-color: var(--primary)}
+
+    /* Toasts */
+    .toasts{
+      position:fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 1000;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      width: min(380px, calc(100vw - 28px));
+      pointer-events:none;
+    }
+    .toast{
+      pointer-events:auto;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow: 0 18px 40px rgba(15,23,42,.18);
+      padding:10px 12px;
+      display:flex; gap:10px; align-items:flex-start;
+      animation: toastIn .18s ease-out;
+    }
+    @keyframes toastIn{from{transform: translateY(8px); opacity:.0}to{transform: translateY(0); opacity:1}}
+    .toast .ticon{
+      width:34px;height:34px;border-radius:12px; display:flex; align-items:center; justify-content:center;
+      border:1px solid var(--border);
+      background:#f8fafc;
+      flex:0 0 auto;
+    }
+    .toast .tmain{min-width:0}
+    .toast .tmain b{display:block; font-size:13px}
+    .toast .tmain p{margin:2px 0 0 0; font-size:12px; color:var(--muted); line-height:1.35}
+    .toast .tclose{margin-left:auto}
+    .toast .tclose button{
+      pointer-events:auto;
+      border:1px solid var(--border);
+      background:#fff;
+      width:30px;height:30px;border-radius:10px;
+      cursor:pointer;
+    }
+    .toast.success .ticon{background: var(--success-weak); border-color: rgba(22,163,74,.22)}
+    .toast.warn .ticon{background: var(--warn-weak); border-color: rgba(217,119,6,.22)}
+    .toast.danger .ticon{background: var(--danger-weak); border-color: rgba(220,38,38,.22)}
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0; z-index: 1200;
+      background: rgba(15,23,42,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+    }
+    .modal-backdrop[aria-hidden="false"]{display:flex}
+    .modal{
+      width: min(980px, calc(100vw - 24px));
+      max-height: min(86vh, 860px);
+      overflow:auto;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(15,23,42,.25);
+    }
+    .modal-head{
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    }
+    .modal-head h3{margin:0; font-size:15px}
+    .modal-head p{margin:4px 0 0 0; font-size:12px; color:var(--muted)}
+    .modal-body{padding:14px}
+    .mono{font-family:var(--mono)}
+    .kv{
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap:10px 14px;
+      font-size:13px;
+    }
+    @media (max-width: 720px){
+      .kv{grid-template-columns: 1fr}
+    }
+    .k{color:var(--muted)}
+    .v{min-width:0}
+    .logbox{
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      background: #f8fafc;
+    }
+    .logbox ul{margin:0; padding-left:18px}
+    .logbox li{margin:6px 0; font-size:13px}
+    .muted{color:var(--muted)}
+    .inline-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+    /* Small screens: reduce min table width for history */
+    .history table{min-width: 900px}
+    .results table{min-width: 1180px}
+    @media (min-width: 1280px){
+      .history table{min-width: 100%}
+      .results table{min-width: 100%}
+    }
+    @media (max-width: 768px){
+      .history table{min-width: 600px}
+      .results table{min-width: 800px}
+      .table-wrap{overflow-x: auto; -webkit-overflow-scrolling: touch}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand" aria-label="Сервис расчёта НМЦ">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>НМЦ по ЕИС — операторский интерфейс</h1>
+            <p>Мок-данные · онлайн-обновления · отчёт по сверке</p>
+          </div>
+        </div>
+
+        <div class="pill" title="Симуляция подключения нейросети">
+          <div class="dot" aria-hidden="true"></div>
+          <div>
+            <b>Нейросеть подключена</b>
+            <span>скоринг и сравнение характеристик</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="layout">
+        <!-- LEFT: Tabs + content -->
+        <section class="card" id="mainCard">
+          <div class="tabs" role="tablist" aria-label="Навигация">
+            <div class="tab" role="tab" tabindex="0" id="tab-history" aria-selected="true" aria-controls="panel-history">
+              История поисков <span class="badge" id="badge-history">—</span>
+            </div>
+            <div class="tab" role="tab" tabindex="0" id="tab-results" aria-selected="false" aria-controls="panel-results">
+              Результаты <span class="badge" id="badge-results">последний</span>
+            </div>
+          </div>
+
+          <!-- Panels -->
+          <div class="card-body">
+            <!-- HISTORY PANEL -->
+            <section id="panel-history" role="tabpanel" aria-labelledby="tab-history">
+              <div class="card-title">
+                <div>
+                  <h2>История поисков</h2>
+                  <p>Наведи мышку на строку и кликни — откроются результаты поиска (без отдельной кнопки).</p>
+                </div>
+                <div class="inline-actions">
+                  <button class="btn small" id="btn-demo-fill" title="Сгенерировать демо-историю">
+                    ✨ Демо-история
+                  </button>
+                  <button class="btn small" id="btn-clear" title="Очистить мок-данные (для демонстрации)">
+                    🧹 Очистить
+                  </button>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="table-wrap history" aria-label="Таблица истории">
+                <table id="historyTable">
+                  <thead>
+                    <tr>
+                      <th data-col="createdAt">Дата поиска <button class="btn icon small ghost" data-filter="history" data-col="createdAt" title="Фильтр">⛃</button></th>
+                      <th data-col="queryTitle">Объект поиска <button class="btn icon small ghost" data-filter="history" data-col="queryTitle" title="Фильтр">⛃</button></th>
+                      <th data-col="ktru">КТРУ <button class="btn icon small ghost" data-filter="history" data-col="ktru" title="Фильтр">⛃</button></th>
+                      <th data-col="status">Статус <button class="btn icon small ghost" data-filter="history" data-col="status" title="Фильтр">⛃</button></th>
+                      <th data-col="avgPrice">Предл. средняя цена <button class="btn icon small ghost" data-filter="history" data-col="avgPrice" title="Фильтр">⛃</button></th>
+                      <th data-col="contractsProcessed">Обработано/лимит <button class="btn icon small ghost" data-filter="history" data-col="contractsProcessed" title="Фильтр">⛃</button></th>
+                      <th data-col="foundTotal">Найдено в ЕИС <button class="btn icon small ghost" data-filter="history" data-col="foundTotal" title="Фильтр">⛃</button></th>
+                      <th data-col="duration">Время <button class="btn icon small ghost" data-filter="history" data-col="duration" title="Фильтр">⛃</button></th>
+                      <th data-col="notes">Пояснение <button class="btn icon small ghost" data-filter="history" data-col="notes" title="Фильтр">⛃</button></th>
+                      <th data-col="actions" style="min-width:170px">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyTbody">
+                    <!-- rows injected by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pager" id="historyPager">
+                <div class="left">
+                  <button class="btn small" id="historyPrev">← Назад</button>
+                  <button class="btn small" id="historyNext">Вперёд →</button>
+                </div>
+                <div class="meta" id="historyMeta">—</div>
+                <div class="right">
+                  <span class="meta">Строк на странице:</span>
+                  <select class="select" id="historyPageSize" style="width:120px">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <!-- RESULTS PANEL (starts in PART2) -->
+<!-- app_part2.html  (PART 2/3)  Вставьте ВТОРЫМ -->
+            <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden>
+              <div class="card-title">
+                <div>
+                  <h2>Результаты последнего поиска</h2>
+                  <p class="muted" id="resultsSubtitle">Запусти поиск справа — результаты появятся здесь и будут обновляться онлайн.</p>
+                </div>
+                <div class="inline-actions">
+                  <button class="btn small" id="btn-export-report" title="Скачать отчёт по сверке (мок)">
+                    ⬇️ Отчёт (TXT)
+                  </button>
+                  <button class="btn small" id="btn-open-summary" title="Сводка по НМЦ и выбранным контрактам">
+                    📌 Сводка
+                  </button>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="grid3" style="margin-bottom:12px">
+                <div class="card" style="box-shadow:none">
+                  <div class="card-body" style="padding:12px">
+                    <div class="label">Найдено контрактов в ЕИС</div>
+                    <div style="font-size:18px; margin-top:2px"><b id="kpiFound">—</b></div>
+                    <div class="hint">Показываем число, соответствующее фильтрам на сайте ЕИС (мок). :contentReference[oaicite:1]{index=1}</div>
+                  </div>
+                </div>
+                <div class="card" style="box-shadow:none">
+                  <div class="card-body" style="padding:12px">
+                    <div class="label">Обработано / лимит</div>
+                    <div style="font-size:18px; margin-top:2px"><b id="kpiProcessed">—</b></div>
+                    <div class="hint">По умолчанию лимит 30, можно менять перед запуском. :contentReference[oaicite:2]{index=2}</div>
+                  </div>
+                </div>
+                <div class="card" style="box-shadow:none">
+                  <div class="card-body" style="padding:12px">
+                    <div class="label">Предложенная средняя цена (НМЦ)</div>
+                    <div style="font-size:18px; margin-top:2px"><b id="kpiAvg">—</b></div>
+                    <div class="hint">Рассчитано по трём выбранным контрактам (галочки). :contentReference[oaicite:3]{index=3}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-wrap results" aria-label="Таблица результатов">
+                <table id="resultsTable">
+                  <thead>
+                    <tr>
+                      <th data-col="selected" style="min-width:90px">В НМЦ <button class="btn icon small ghost" data-filter="results" data-col="selected" title="Фильтр">⛃</button></th>
+                      <th data-col="score">Скоринг <button class="btn icon small ghost" data-filter="results" data-col="score" title="Фильтр">⛃</button></th>
+                      <th data-col="matchType">Тип совпадения <button class="btn icon small ghost" data-filter="results" data-col="matchType" title="Фильтр">⛃</button></th>
+                      <th data-col="contractNumber">Номер контракта <button class="btn icon small ghost" data-filter="results" data-col="contractNumber" title="Фильтр">⛃</button></th>
+                      <th data-col="dateSigned">Дата заключения <button class="btn icon small ghost" data-filter="results" data-col="dateSigned" title="Фильтр">⛃</button></th>
+                      <th data-col="unitPrice">Цена за единицу <button class="btn icon small ghost" data-filter="results" data-col="unitPrice" title="Фильтр">⛃</button></th>
+                      <th data-col="manufacturerNote">Производитель <button class="btn icon small ghost" data-filter="results" data-col="manufacturerNote" title="Фильтр">⛃</button></th>
+                      <th data-col="accepted">Статус <button class="btn icon small ghost" data-filter="results" data-col="accepted" title="Фильтр">⛃</button></th>
+                      <th data-col="link" style="min-width:180px">Ссылка</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resultsTbody">
+                    <!-- rows injected by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pager" id="resultsPager">
+                <div class="left">
+                  <button class="btn small" id="resultsPrev">← Назад</button>
+                  <button class="btn small" id="resultsNext">Вперёд →</button>
+                </div>
+                <div class="meta" id="resultsMeta">—</div>
+                <div class="right">
+                  <span class="meta">Строк на странице:</span>
+                  <select class="select" id="resultsPageSize" style="width:120px">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+          </div><!-- /card-body -->
+        </section><!-- /main card -->
+
+        <!-- RIGHT: Search module (shared for all tabs) -->
+        <aside class="card search-module" aria-label="Модуль запуска поиска">
+          <div class="card-header">
+            <div class="card-title">
+              <div>
+                <h2>Запуск поиска</h2>
+                <p>Ввод вручную или импорт файла ТЗ. Обновления — онлайн.</p>
+              </div>
+              <button class="btn icon" id="btn-help" title="Подсказки по полям">?</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="field">
+              <div class="label">Пояснение для истории (для какого товара/задачи)</div>
+              <input class="input" id="inpQueryTitle" placeholder="Напр.: Монитор 27&quot; IPS, 2560×1440" />
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="grid2">
+              <div class="field">
+                <div class="label">Закон</div>
+                <select class="select" id="selLaw">
+                  <option value="44-FZ" selected>44-ФЗ</option>
+                  <option value="223-FZ">223-ФЗ (не используется в мок)</option>
+                </select>
+              </div>
+              <div class="field">
+                <div class="label">Статусы исполнения</div>
+                <select class="select" id="selExec">
+                  <option value="completed_or_terminated" selected>Исполнение завершено / прекращено</option>
+                  <option value="any">Любые</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="grid2">
+              <div class="field">
+                <div class="label">Местоположение заказчика (округ)</div>
+                <select class="select" id="selRegion">
+                  <option value="NWFO" selected>Северо-Западный ФО</option>
+                  <option value="CFO">Центральный ФО</option>
+                  <option value="SFO">Сибирский ФО</option>
+                </select>
+              </div>
+              <div class="field">
+                <div class="label">Период: заключение контракта</div>
+                <select class="select" id="selPeriod">
+                  <option value="3y" selected>3 года от текущей даты</option>
+                  <option value="1y">1 год</option>
+                  <option value="all">Без ограничений</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="grid2">
+              <div class="field">
+                <div class="label">Код позиции по КТРУ (укрупнённый)</div>
+                <input class="input mono" id="inpKTRU" placeholder="Напр.: 26.20.16.110-00000001" />
+                <div class="hint">После ввода показываем «выбор из списка» (мок). Можно подтянуть характеристики.</div>
+              </div>
+              <div class="field">
+                <div class="label">Ограничить обработку контрактов</div>
+                <input class="input" id="inpLimit" type="number" min="1" max="300" value="30" />
+                <div class="hint">По умолчанию 30. :contentReference[oaicite:4]{index=4}</div>
+              </div>
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="field">
+              <div class="label">Основные характеристики (для сравнения/скоринга)</div>
+              <textarea class="textarea" id="txtSpecs" placeholder="Пример: диагональ 27; матрица IPS; разрешение 2560×1440; яркость ≥ 300 кд/м²; HDMI/DP; ..."></textarea>
+              <div class="hint">Качественные и количественные — в свободной форме (мок). Сравнение выполняет «нейросеть».</div>
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="drop" id="dropZone" role="button" tabindex="0" aria-label="Импорт файла ТЗ">
+              <div>
+                <strong>Импортировать файл ТЗ</strong>
+                <small>Поддержка: doc, docx, pdf, html (мок). Файл используется для подготовки поиска. :contentReference[oaicite:5]{index=5}</small>
+              </div>
+              <div class="inline-actions">
+                <button class="btn small" id="btnPickFile">Выбрать</button>
+              </div>
+              <input class="file-input" id="fileInput" type="file" accept=".doc,.docx,.pdf,.html" />
+            </div>
+
+            <div style="height:14px"></div>
+
+            <div class="grid2">
+              <button class="btn primary" id="btnStart">
+                🔎 Начать поиск
+              </button>
+              <button class="btn" id="btnPrefill">
+                ⚡ Заполнить пример
+              </button>
+            </div>
+
+            <div class="hint" style="margin-top:10px">
+              Поиск обрабатывает сначала самые свежие контракты (мок). :contentReference[oaicite:6]{index=6}
+            </div>
+          </div>
+        </aside>
+
+      </div><!-- /layout -->
+    </main>
+
+    <!-- Column filter popover -->
+    <div class="pop" id="filterPop" aria-hidden="true">
+      <p class="pop-title" id="filterTitle">Фильтр</p>
+      <div id="filterBody"></div>
+      <div class="pop-actions">
+        <button class="btn small" id="filterReset">Сброс</button>
+        <button class="btn small primary" id="filterApply">Применить</button>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Modal: Contract details -->
+    <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal" role="document" aria-label="Детали контракта">
+        <div class="modal-head">
+          <div>
+            <h3 id="modalTitle">Контракт</h3>
+            <p id="modalSub" class="muted">—</p>
+          </div>
+          <div class="inline-actions">
+            <button class="btn small" id="modalOpenEIS">Открыть в ЕИС</button>
+            <button class="btn small" id="modalDownloadLog">Лог сверки (TXT)</button>
+            <button class="btn small" id="modalClose">Закрыть</button>
+          </div>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Summary -->
+    <div class="modal-backdrop" id="summaryBackdrop" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal" role="document" aria-label="Сводка НМЦ">
+        <div class="modal-head">
+          <div>
+            <h3>Сводка расчёта НМЦ</h3>
+            <p class="muted">Три выбранных контракта сверху; средняя цена — по ним.</p>
+          </div>
+          <div class="inline-actions">
+            <button class="btn small" id="summaryCopy">Скопировать</button>
+            <button class="btn small" id="summaryClose">Закрыть</button>
+          </div>
+        </div>
+        <div class="modal-body" id="summaryBody"></div>
+      </div>
+    </div>
+
+    <!-- PART3 continues with scripts and closing tags -->
+<!-- app_part3.html  (PART 3/3)  Вставьте ТРЕТЬИМ — после PART 2 -->
+    <script>
+      /******************************************************************
+       * NMC EIS Mock UI — Part 3
+       * - tabs
+       * - mock data & "online" updates
+       * - paginations (history/results)
+       * - column filters (popover)
+       * - row click: history -> open results (no separate button)
+       * - modals (contract, summary), toasts
+       * - exports (report/logs as TXT)
+       ******************************************************************/
+
+      // ---------- Utilities ----------
+      const $ = (sel, root=document) => root.querySelector(sel);
+      const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+      const fmtMoney = (n) => {
+        if (n === null || n === undefined || Number.isNaN(+n)) return "—";
+        const v = Number(n);
+        return new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(v);
+      };
+      const fmtInt = (n) => (n === null || n === undefined) ? "—" : new Intl.NumberFormat("ru-RU").format(Number(n));
+      const pad2 = (x) => String(x).padStart(2,"0");
+      const fmtDT = (d) => {
+        const dt = (d instanceof Date) ? d : new Date(d);
+        return `${pad2(dt.getDate())}.${pad2(dt.getMonth()+1)}.${dt.getFullYear()} ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+      };
+      const fmtD = (d) => {
+        const dt = (d instanceof Date) ? d : new Date(d);
+        return `${pad2(dt.getDate())}.${pad2(dt.getMonth()+1)}.${dt.getFullYear()}`;
+      };
+      const rand = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
+      const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+      function downloadText(filename, text) {
+        const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      }
+
+      async function copyText(text){
+        try{
+          await navigator.clipboard.writeText(text);
+          toast("Скопировано", "Сводка помещена в буфер обмена.", "success");
+          return true;
+        }catch(e){
+          toast("Не удалось скопировать", "Ваш браузер блокирует clipboard. Можно выделить и скопировать вручную.", "warn");
+          return false;
+        }
+      }
+
+      // ---------- Toasts ----------
+      function toast(title, desc="", type="success", ttl=3800){
+        const wrap = $("#toasts");
+        const id = "t-" + uid();
+        const t = document.createElement("div");
+        t.className = `toast ${type}`;
+        t.id = id;
+
+        const icon = document.createElement("div");
+        icon.className = "ticon";
+        icon.textContent = type==="success" ? "✓" : (type==="warn" ? "!" : "×");
+
+        const main = document.createElement("div");
+        main.className = "tmain";
+        const b = document.createElement("b"); b.textContent = title;
+        const p = document.createElement("p"); p.textContent = desc;
+        main.appendChild(b); main.appendChild(p);
+
+        const close = document.createElement("div");
+        close.className = "tclose";
+        const btn = document.createElement("button");
+        btn.title = "Закрыть";
+        btn.textContent = "✕";
+        btn.addEventListener("click", ()=>removeToast(id));
+        close.appendChild(btn);
+
+        t.appendChild(icon);
+        t.appendChild(main);
+        t.appendChild(close);
+        wrap.appendChild(t);
+
+        if (ttl > 0){
+          setTimeout(()=>removeToast(id), ttl);
+        }
+      }
+      function removeToast(id){
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.transition = "opacity .18s ease, transform .18s ease";
+        el.style.opacity = "0";
+        el.style.transform = "translateY(6px)";
+        setTimeout(()=>el.remove(), 220);
+      }
+
+      // ---------- State ----------
+      const state = {
+        activeTab: "history",
+        history: [],
+        resultsBySearchId: {}, // searchId -> results[]
+        activeSearchId: null,
+        running: {
+          timer: null,
+          searchId: null,
+          step: 0,
+        },
+        paging: {
+          history: { page: 1, size: 10 },
+          results: { page: 1, size: 10 }
+        },
+        filters: {
+          history: {}, // col -> Set(values)
+          results: {}
+        },
+        filterUI: {
+          tableKey: null,
+          col: null,
+          anchor: null
+        }
+      };
+
+      // ---------- Mock generators ----------
+      const MOCK = {
+        matchTypes: ["Идентичный", "Однородный"],
+        manufacturers: ["LG", "Samsung", "Dell", "Acer", "HP", "Lenovo", "ASUS", "Philips", "ViewSonic"],
+        regions: {
+          NWFO: "СЗФО",
+          CFO: "ЦФО",
+          SFO: "СФО"
+        }
+      };
+
+      function makeContract(i, queryTitle, ktru){
+        const year = [2026, 2025, 2024, 2023][rand(0,3)];
+        const month = rand(1,12);
+        const day = rand(1,28);
+        const reestrNumber = `${rand(1000000000,9999999999)}${rand(1000000000,9999999999)}${year}${pad2(rand(1,12))}${pad2(rand(1,28))}${pad2(rand(1,99))}`;
+        const contractNumber = `${rand(2710000000000000000, 2799999999999999999)}`; // близко к формату из ТЗ
+        const unitPrice = rand(12500, 49000) + (rand(0,99)/100);
+        const score = clamp(rand(58, 98) + rand(-5, 5), 0, 100);
+        const matchType = score >= 86 ? "Идентичный" : "Однородный";
+        const manufacturer = MOCK.manufacturers[rand(0, MOCK.manufacturers.length-1)];
+        const manufacturerMentioned = rand(0, 100) > 55;
+
+        const accepted = score >= 82; // базовый мок-правил
+        const manufacturerMismatch = manufacturerMentioned && rand(0,100) > 72; // мок расхождения
+        
+        // Специальная проверка для контрактов от 2025 года (требование ТЗ)
+        const is2025Contract = year === 2025;
+        const manufacturerCheck2025 = is2025Contract && manufacturerMentioned;
+        const manufacturerMatch2025 = manufacturerCheck2025 ? (rand(0,100) > 30) : null; // 70% совпадений для 2025
+
+        const matched = [
+          "диагональ", "разрешение", "тип матрицы", "интерфейсы"
+        ].slice(0, rand(2,4));
+
+        const differed = [
+          "яркость", "время отклика", "подставка/регулировки", "цвет корпуса", "покрытие экрана"
+        ].slice(0, rand(0,3));
+
+        const log = {
+          matched,
+          differed,
+          manufacturerNote: manufacturerMentioned
+            ? (manufacturerMismatch ? `⚠️ Производитель в контракте: ${manufacturer}. Возможное расхождение с заявкой.` : `Производитель указан: ${manufacturer}.`)
+            : "Производитель не указан явно (по наименованию/вводным).",
+          year,
+          reestrNumber,
+          contractNumber,
+          is2025Contract,
+          manufacturerCheck2025,
+          manufacturerMatch2025
+        };
+
+        return {
+          id: uid(),
+          selected: false, // will be set after sort
+          score,
+          matchType,
+          contractNumber,
+          reestrNumber,
+          dateSigned: `${pad2(day)}.${pad2(month)}.${year}`,
+          unitPrice,
+          manufacturerNote: manufacturerMentioned ? manufacturer : "—",
+          accepted, // accepted to calc (status) - соответствует требованию ТЗ "контракт принят к расчету"
+          manufacturerMismatch,
+          is2025Contract,
+          manufacturerCheck2025,
+          manufacturerMatch2025,
+          eisUrl: `https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=${contractNumber}`,
+          queryTitle,
+          ktru,
+          log
+        };
+      }
+
+      function seedDemoHistory(){
+        const now = new Date();
+        const demo = [
+          {
+            createdAt: new Date(now.getTime() - 1000*60*18),
+            queryTitle: "Монитор 27\" IPS 2560×1440 (QHD)",
+            ktru: "26.20.16.110-00000001",
+            status: "Успешно",
+            avgPrice: 28750.65,
+            contractsProcessed: 30,
+            limit: 30,
+            foundTotal: 184,
+            duration: "02:11",
+            notes: "3 контракта идентичны, производитель совпал.",
+            hasResults: true
+          },
+          {
+            createdAt: new Date(now.getTime() - 1000*60*62),
+            queryTitle: "Принтер лазерный A4, 30 стр/мин",
+            ktru: "26.20.16.130-00000002",
+            status: "Частично",
+            avgPrice: 21400.00,
+            contractsProcessed: 24,
+            limit: 30,
+            foundTotal: 92,
+            duration: "01:44",
+            notes: "2 идентичных + 1 однородный (скоринг 79).",
+            hasResults: true
+          },
+          {
+            createdAt: new Date(now.getTime() - 1000*60*220),
+            queryTitle: "Картридж совместимый, ресурс ≥ 3000 стр",
+            ktru: "20.59.12.120-00000005",
+            status: "Остановлено",
+            avgPrice: null,
+            contractsProcessed: 12,
+            limit: 30,
+            foundTotal: 311,
+            duration: "00:58",
+            notes: "Оператор остановил после 12 проверок.",
+            hasResults: true
+          }
+        ].map(x => ({
+          id: uid(),
+          ...x
+        }));
+
+        // add results for each demo search
+        demo.forEach((h, idx)=>{
+          const list = [];
+          const count = idx===0 ? 12 : (idx===1 ? 9 : 7);
+          for (let i=0; i<count; i++){
+            list.push(makeContract(i, h.queryTitle, h.ktru));
+          }
+          // select top 3 by score for "calc"
+          list.sort((a,b)=>b.score-a.score);
+          list.forEach((c, i)=>{
+            c.selected = i < 3;
+            c.accepted = c.selected; // for demo: accepted if selected
+          });
+          // keep selected at top
+          const selected = list.filter(x=>x.selected);
+          const rest = list.filter(x=>!x.selected).sort((a,b)=>b.score-a.score);
+          state.resultsBySearchId[h.id] = [...selected, ...rest];
+        });
+
+        state.history = demo;
+        state.activeSearchId = demo[0].id;
+
+        toast("Демо загружено", "История и результаты заполнены мок-данными.", "success");
+        updateBadges();
+        renderAll();
+      }
+
+      // ---------- Tabs ----------
+      function setTab(tabKey){
+        state.activeTab = tabKey;
+        const tabHistory = $("#tab-history");
+        const tabResults = $("#tab-results");
+        const pHistory = $("#panel-history");
+        const pResults = $("#panel-results");
+
+        const isHistory = tabKey === "history";
+        tabHistory.setAttribute("aria-selected", isHistory ? "true" : "false");
+        tabResults.setAttribute("aria-selected", !isHistory ? "true" : "false");
+        pHistory.hidden = !isHistory;
+        pResults.hidden = isHistory;
+
+        // focus ring: best-effort
+        if (isHistory) tabHistory.focus({preventScroll:true});
+        else tabResults.focus({preventScroll:true});
+
+        // refresh visible table
+        renderAll();
+      }
+
+      function bindTabs(){
+        $("#tab-history").addEventListener("click", ()=>setTab("history"));
+        $("#tab-results").addEventListener("click", ()=>setTab("results"));
+        $("#tab-history").addEventListener("keydown", (e)=>{ if (e.key==="Enter"||e.key===" ") setTab("history"); });
+        $("#tab-results").addEventListener("keydown", (e)=>{ if (e.key==="Enter"||e.key===" ") setTab("results"); });
+      }
+
+      // ---------- Filters (popover) ----------
+      const filterPop = $("#filterPop");
+      const filterTitle = $("#filterTitle");
+      const filterBody = $("#filterBody");
+      const filterApply = $("#filterApply");
+      const filterReset = $("#filterReset");
+
+      function getDataset(tableKey){
+        if (tableKey === "history") return state.history;
+        const sid = state.activeSearchId;
+        return sid ? (state.resultsBySearchId[sid] || []) : [];
+      }
+
+      function colValue(item, tableKey, col){
+        if (tableKey==="history"){
+          switch(col){
+            case "createdAt": return fmtDT(item.createdAt);
+            case "queryTitle": return item.queryTitle || "—";
+            case "ktru": return item.ktru || "—";
+            case "status": return item.status || "—";
+            case "avgPrice": return item.avgPrice==null ? "—" : fmtMoney(item.avgPrice);
+            case "contractsProcessed": return `${item.contractsProcessed}/${item.limit}`;
+            case "foundTotal": return fmtInt(item.foundTotal);
+            case "duration": return item.duration || "—";
+            case "notes": return item.notes || "—";
+            default: return item[col] ?? "—";
+          }
+        }else{
+          switch(col){
+            case "selected": return item.selected ? "Да" : "Нет";
+            case "score": return `${item.score}`;
+            case "matchType": return item.matchType || "—";
+            case "contractNumber": return item.contractNumber || "—";
+            case "dateSigned": return item.dateSigned || "—";
+            case "unitPrice": return fmtMoney(item.unitPrice);
+            case "manufacturerNote": return item.manufacturerNote || "—";
+            case "accepted": return item.accepted ? "Принят" : "Не принят";
+            default: return item[col] ?? "—";
+          }
+        }
+      }
+
+      function uniqueValues(dataset, tableKey, col){
+        const set = new Set();
+        dataset.forEach(item=>{
+          set.add(colValue(item, tableKey, col));
+        });
+        return Array.from(set).sort((a,b)=>String(a).localeCompare(String(b), "ru"));
+      }
+
+      function openFilterPopover(btn, tableKey, col){
+        state.filterUI.tableKey = tableKey;
+        state.filterUI.col = col;
+        state.filterUI.anchor = btn;
+
+        const label = btn.closest("th")?.textContent?.replace("⛃","")?.trim() || "Фильтр";
+        filterTitle.textContent = `Фильтр: ${label}`;
+
+        const dataset = getDataset(tableKey);
+        const values = uniqueValues(dataset, tableKey, col);
+
+        const activeSet = state.filters[tableKey][col] ? new Set(state.filters[tableKey][col]) : null;
+
+        // UI: search + checklist
+        filterBody.innerHTML = "";
+        const searchWrap = document.createElement("div");
+        searchWrap.className = "field";
+        const sInput = document.createElement("input");
+        sInput.className = "input";
+        sInput.placeholder = "Поиск по значениям…";
+        sInput.setAttribute("aria-label", "Поиск в фильтре");
+        searchWrap.appendChild(sInput);
+
+        const list = document.createElement("div");
+        list.className = "checklist";
+
+        function renderList(q=""){
+          list.innerHTML = "";
+          const qq = q.trim().toLowerCase();
+          const filtered = values.filter(v => String(v).toLowerCase().includes(qq));
+
+          if (filtered.length === 0){
+            const empty = document.createElement("div");
+            empty.className = "hint";
+            empty.style.margin = "6px";
+            empty.textContent = "Нет значений по запросу.";
+            list.appendChild(empty);
+            return;
+          }
+
+          filtered.forEach(v=>{
+            const row = document.createElement("label");
+            row.className = "check";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.value = v;
+            cb.checked = activeSet ? activeSet.has(v) : false;
+
+            const span = document.createElement("span");
+            span.textContent = v;
+
+            row.appendChild(cb);
+            row.appendChild(span);
+            list.appendChild(row);
+          });
+        }
+
+        renderList();
+        sInput.addEventListener("input", ()=>renderList(sInput.value));
+
+        filterBody.appendChild(searchWrap);
+        filterBody.appendChild(list);
+
+        // position
+        const r = btn.getBoundingClientRect();
+        const popW = 280;
+        const left = clamp(r.left, 12, window.innerWidth - popW - 12);
+        const top = clamp(r.bottom + 8, 12, window.innerHeight - 260);
+        filterPop.style.left = `${left}px`;
+        filterPop.style.top = `${top}px`;
+        filterPop.setAttribute("aria-hidden", "false");
+      }
+
+      function closeFilterPopover(){
+        filterPop.setAttribute("aria-hidden", "true");
+        state.filterUI.tableKey = null;
+        state.filterUI.col = null;
+        state.filterUI.anchor = null;
+      }
+
+      function applyFilter(){
+        const tableKey = state.filterUI.tableKey;
+        const col = state.filterUI.col;
+        if (!tableKey || !col) return;
+
+        const chosen = new Set();
+        $$("input[type='checkbox']", filterBody).forEach(cb=>{
+          if (cb.checked) chosen.add(cb.value);
+        });
+
+        // if nothing checked -> treat as "no filter" (show all)
+        if (chosen.size === 0){
+          delete state.filters[tableKey][col];
+        }else{
+          state.filters[tableKey][col] = Array.from(chosen);
+        }
+
+        toast("Фильтр применён", "Таблица обновлена.", "success", 2200);
+        closeFilterPopover();
+        renderAll();
+      }
+
+      function resetFilter(){
+        const tableKey = state.filterUI.tableKey;
+        const col = state.filterUI.col;
+        if (!tableKey || !col) return;
+        delete state.filters[tableKey][col];
+        toast("Фильтр сброшен", "Показаны все значения по столбцу.", "warn", 2200);
+        closeFilterPopover();
+        renderAll();
+      }
+
+      function bindFilters(){
+        document.addEventListener("click", (e)=>{
+          const btn = e.target.closest("[data-filter]");
+          if (btn){
+            e.preventDefault();
+            e.stopPropagation();
+            const tableKey = btn.getAttribute("data-filter");
+            const col = btn.getAttribute("data-col");
+            openFilterPopover(btn, tableKey, col);
+            return;
+          }
+          // click outside popover closes it
+          if (filterPop.getAttribute("aria-hidden")==="false"){
+            const inside = e.target.closest("#filterPop");
+            const isAnchor = state.filterUI.anchor && (e.target === state.filterUI.anchor || e.target.closest("[data-filter]") === state.filterUI.anchor);
+            if (!inside && !isAnchor) closeFilterPopover();
+          }
+        });
+
+        window.addEventListener("resize", ()=>{
+          if (filterPop.getAttribute("aria-hidden")==="false") closeFilterPopover();
+        });
+
+        filterApply.addEventListener("click", applyFilter);
+        filterReset.addEventListener("click", resetFilter);
+
+        document.addEventListener("keydown", (e)=>{
+          if (e.key === "Escape"){
+            if ($("#modalBackdrop").getAttribute("aria-hidden")==="false") closeContractModal();
+            if ($("#summaryBackdrop").getAttribute("aria-hidden")==="false") closeSummary();
+            if (filterPop.getAttribute("aria-hidden")==="false") closeFilterPopover();
+          }
+        });
+      }
+
+      function passesFilters(item, tableKey){
+        const f = state.filters[tableKey] || {};
+        for (const [col, valuesArr] of Object.entries(f)){
+          const val = colValue(item, tableKey, col);
+          if (!valuesArr.includes(val)) return false;
+        }
+        return true;
+      }
+
+      // ---------- Rendering: History ----------
+      function statusChip(status){
+        const s = String(status || "—").toLowerCase();
+        if (s.includes("успеш")) return `<span class="chip success"><span class="mini-dot"></span>${status}</span>`;
+        if (s.includes("част")) return `<span class="chip warn"><span class="mini-dot"></span>${status}</span>`;
+        if (s.includes("останов")) return `<span class="chip danger"><span class="mini-dot"></span>${status}</span>`;
+        if (s.includes("процесс")) return `<span class="chip neutral"><span class="mini-dot"></span>${status}</span>`;
+        return `<span class="chip neutral"><span class="mini-dot"></span>${status}</span>`;
+      }
+
+      function renderHistory(){
+        const tbody = $("#historyTbody");
+        const list = state.history
+          .slice()
+          .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
+          .filter(x=>passesFilters(x, "history"));
+
+        const total = list.length;
+        const {page, size} = state.paging.history;
+        const pages = Math.max(1, Math.ceil(total / size));
+        const p = clamp(page, 1, pages);
+        state.paging.history.page = p;
+
+        const start = (p-1)*size;
+        const pageItems = list.slice(start, start+size);
+
+        tbody.innerHTML = "";
+
+        if (pageItems.length === 0){
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="10" class="muted" style="padding:16px">
+            История пуста или фильтры скрыли все строки. Нажмите «⚡ Заполнить пример» или «✨ Демо-история».
+          </td>`;
+          tbody.appendChild(tr);
+        }
+
+        pageItems.forEach(item=>{
+          const tr = document.createElement("tr");
+          tr.className = "row-hover";
+          tr.dataset.searchId = item.id;
+          tr.title = "Клик по строке откроет результаты этого поиска";
+
+          const runningThis = (state.running.searchId === item.id);
+
+          tr.innerHTML = `
+            <td>${fmtDT(item.createdAt)}</td>
+            <td><b>${item.queryTitle || "—"}</b></td>
+            <td class="mono">${item.ktru || "—"}</td>
+            <td>${statusChip(item.status)}</td>
+            <td><b>${item.avgPrice==null ? "—" : fmtMoney(item.avgPrice)}</b></td>
+            <td>${fmtInt(item.contractsProcessed)}/${fmtInt(item.limit)}</td>
+            <td>${fmtInt(item.foundTotal)}</td>
+            <td>${item.duration || "—"}</td>
+            <td class="muted">${item.notes || "—"}</td>
+            <td>
+              <div class="inline-actions">
+                ${runningThis ? `<button class="btn small danger" data-action="stop">⏹ Остановить</button>` : ``}
+                <button class="btn small" data-action="open">Открыть</button>
+                <button class="btn small" data-action="report">Отчёт</button>
+              </div>
+            </td>
+          `;
+
+          // Row click anywhere (except action buttons) opens results
+          tr.addEventListener("click", (e)=>{
+            const actionBtn = e.target.closest("[data-action]");
+            if (actionBtn) return; // handled below
+
+            openResultsForSearch(item.id, true);
+          });
+
+          // action buttons
+          tr.querySelectorAll("[data-action]").forEach(btn=>{
+            btn.addEventListener("click", (e)=>{
+              e.stopPropagation();
+              const act = btn.getAttribute("data-action");
+              if (act === "stop"){
+                stopSearch("Остановлено оператором");
+              }else if (act === "open"){
+                openResultsForSearch(item.id, true);
+              }else if (act === "report"){
+                exportReportForSearch(item.id);
+              }
+            });
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        $("#historyMeta").textContent = `Показано: ${start+1}-${Math.min(start+size, total)} из ${total} · Страница ${p}/${pages}`;
+        $("#historyPrev").disabled = p <= 1;
+        $("#historyNext").disabled = p >= pages;
+
+        // badge
+        $("#badge-history").textContent = fmtInt(state.history.length);
+      }
+
+      // ---------- Rendering: Results ----------
+      function acceptedChip(isAccepted, mismatch, is2025Contract, manufacturerCheck2025, manufacturerMatch2025){
+        const st = isAccepted ? "Принят" : "Не принят";
+        const cls = isAccepted ? "success" : "neutral";
+        let extra = "";
+        
+        if (mismatch) {
+          extra += ` <span class="muted" title="Возможное расхождение производителя">· ⚠️</span>`;
+        }
+        
+        // Добавляем информацию о проверке производителя для контрактов 2025 года
+        if (is2025Contract && manufacturerCheck2025) {
+          const matchStatus = manufacturerMatch2025 ? "совпало" : "не совпало";
+          const matchIcon = manufacturerMatch2025 ? "✓" : "✗";
+          extra += ` <span class="muted" title="Контракт 2025: проверка производителя ${matchStatus}">· ${matchIcon}2025</span>`;
+        }
+        
+        return `<span class="chip ${cls}"><span class="mini-dot"></span>${st}</span>${extra}`;
+      }
+
+      function scoreChip(score){
+        const s = Number(score);
+        let cls = "neutral";
+        if (s >= 86) cls = "success";
+        else if (s >= 76) cls = "warn";
+        else cls = "danger";
+        return `<span class="chip ${cls}"><span class="mini-dot"></span>${fmtInt(s)}%</span>`;
+      }
+
+      function renderResults(){
+        const tbody = $("#resultsTbody");
+        const sid = state.activeSearchId;
+        const dataRaw = sid ? (state.resultsBySearchId[sid] || []) : [];
+        const data = dataRaw.filter(x=>passesFilters(x, "results"));
+
+        // enforce sorting: selected first, then score desc
+        const sorted = data.slice().sort((a,b)=>{
+          if (a.selected !== b.selected) return a.selected ? -1 : 1;
+          return (b.score - a.score);
+        });
+
+        // paging
+        const total = sorted.length;
+        const {page, size} = state.paging.results;
+        const pages = Math.max(1, Math.ceil(total / size));
+        const p = clamp(page, 1, pages);
+        state.paging.results.page = p;
+
+        const start = (p-1)*size;
+        const pageItems = sorted.slice(start, start+size);
+
+        tbody.innerHTML = "";
+        if (!sid){
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="9" class="muted" style="padding:16px">
+            Пока нет активного поиска. Запустите поиск справа — данные появятся здесь.
+          </td>`;
+          tbody.appendChild(tr);
+          $("#kpiFound").textContent = "—";
+          $("#kpiProcessed").textContent = "—";
+          $("#kpiAvg").textContent = "—";
+          $("#badge-results").textContent = "—";
+          $("#resultsMeta").textContent = "—";
+          return;
+        }
+
+        if (pageItems.length === 0){
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="9" class="muted" style="padding:16px">
+            Нет строк (возможно, фильтры скрыли результаты).
+          </td>`;
+          tbody.appendChild(tr);
+        }
+
+        pageItems.forEach(item=>{
+          const tr = document.createElement("tr");
+          tr.className = "row-hover";
+          tr.dataset.cid = item.id;
+          tr.title = "Клик — детали и лог сверки";
+
+          // selection checkbox
+          const cbId = "cb-" + item.id;
+          tr.innerHTML = `
+            <td>
+              <label class="check" style="padding:0; gap:8px">
+                <input id="${cbId}" type="checkbox" ${item.selected ? "checked" : ""} />
+                <span>${item.selected ? "<b>Выбрано</b>" : "В НМЦ"}</span>
+              </label>
+              <div class="hint" style="margin:6px 0 0 0">Топ-3 — сверху</div>
+            </td>
+            <td>${scoreChip(item.score)}</td>
+            <td>${item.matchType}</td>
+            <td class="mono"><b>${item.contractNumber}</b></td>
+            <td>${item.dateSigned}</td>
+            <td><b>${fmtMoney(item.unitPrice)}</b></td>
+            <td>${item.manufacturerNote || "—"}</td>
+            <td>${acceptedChip(item.accepted, item.manufacturerMismatch, item.is2025Contract, item.manufacturerCheck2025, item.manufacturerMatch2025)}</td>
+            <td>
+              <a class="btn small" href="${item.eisUrl}" target="_blank" rel="noopener noreferrer" title="Открыть карточку контракта в ЕИС (мок)">
+                🔗 Открыть
+              </a>
+            </td>
+          `;
+
+          // checkbox logic
+          const cb = tr.querySelector(`#${CSS.escape(cbId)}`);
+          cb.addEventListener("click", (e)=>e.stopPropagation());
+          cb.addEventListener("change", ()=>{
+            toggleSelectContract(sid, item.id, cb.checked);
+          });
+
+          // row click opens modal
+          tr.addEventListener("click", ()=>{
+            openContractModal(sid, item.id);
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        $("#resultsMeta").textContent = `Показано: ${start+1}-${Math.min(start+size, total)} из ${total} · Страница ${p}/${pages}`;
+        $("#resultsPrev").disabled = p <= 1;
+        $("#resultsNext").disabled = p >= pages;
+
+        // KPIs & badges
+        updateKpisForSearch(sid);
+        $("#badge-results").textContent = "последний";
+      }
+
+      // ---------- KPI + Summary ----------
+      function updateKpisForSearch(searchId){
+        const hist = state.history.find(h=>h.id===searchId);
+        const list = state.resultsBySearchId[searchId] || [];
+        const selected = list.filter(x=>x.selected);
+
+        $("#kpiFound").textContent = hist ? fmtInt(hist.foundTotal) : fmtInt(list.length);
+        $("#kpiProcessed").textContent = hist ? `${fmtInt(hist.contractsProcessed)}/${fmtInt(hist.limit)}` : `—`;
+
+        const avg = selected.length ? (selected.reduce((s,x)=>s + Number(x.unitPrice||0), 0) / selected.length) : null;
+        $("#kpiAvg").textContent = avg==null ? "—" : fmtMoney(avg);
+
+        // keep history.avgPrice in sync for latest search
+        if (hist && selected.length){
+          hist.avgPrice = avg;
+        }
+      }
+
+      function buildSummaryText(searchId){
+        const hist = state.history.find(h=>h.id===searchId);
+        const list = state.resultsBySearchId[searchId] || [];
+        const selected = list.filter(x=>x.selected).slice(0,3);
+
+        const avg = selected.length ? (selected.reduce((s,x)=>s + Number(x.unitPrice||0), 0) / selected.length) : null;
+
+        const lines = [];
+        lines.push(`СВОДКА РАСЧЁТА НМЦ (мок)`);
+        lines.push(`Дата: ${hist ? fmtDT(hist.createdAt) : fmtDT(new Date())}`);
+        if (hist){
+          lines.push(`Объект: ${hist.queryTitle}`);
+          lines.push(`КТРУ: ${hist.ktru}`);
+          lines.push(`Найдено в ЕИС: ${fmtInt(hist.foundTotal)}; Обработано: ${fmtInt(hist.contractsProcessed)}/${fmtInt(hist.limit)}`);
+        }
+        lines.push(``);
+        lines.push(`Выбранные контракты (для НМЦ):`);
+        if (!selected.length){
+          lines.push(`— нет выбранных (отметьте галочки в таблице).`);
+        }else{
+          selected.forEach((c, i)=>{
+            lines.push(`${i+1}) Контракт: ${c.contractNumber}; Дата: ${c.dateSigned}; Цена за ед.: ${fmtMoney(c.unitPrice)}; Скоринг: ${c.score}% (${c.matchType})`);
+            if (c.manufacturerMismatch) lines.push(`   ⚠️ Возможное расхождение производителя: ${c.manufacturerNote}`);
+          });
+        }
+        lines.push(``);
+        lines.push(`НМЦ (средняя по выбранным): ${avg==null ? "—" : fmtMoney(avg)}`);
+        lines.push(``);
+        lines.push(`Примечание: расчёт и сверка характеристик выполнялись мок-алгоритмом (имитация внешней нейросети).`);
+
+        return lines.join("\n");
+      }
+
+      function openSummary(){
+        const sid = state.activeSearchId;
+        if (!sid){
+          toast("Нет результатов", "Сначала запустите поиск.", "warn");
+          return;
+        }
+        const txt = buildSummaryText(sid);
+        $("#summaryBody").innerHTML = `
+          <div class="logbox">
+            <pre style="margin:0; white-space:pre-wrap; font-family:var(--mono); font-size:12.5px; line-height:1.45">${escapeHtml(txt)}</pre>
+          </div>
+        `;
+        $("#summaryBackdrop").setAttribute("aria-hidden","false");
+      }
+      function closeSummary(){
+        $("#summaryBackdrop").setAttribute("aria-hidden","true");
+      }
+
+      // ---------- Contract modal ----------
+      function escapeHtml(s){
+        return String(s)
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+
+      function openContractModal(searchId, contractId){
+        const list = state.resultsBySearchId[searchId] || [];
+        const c = list.find(x=>x.id===contractId);
+        if (!c) return;
+
+        $("#modalTitle").textContent = `Контракт ${c.contractNumber}`;
+        $("#modalSub").textContent = `${c.matchType} · скоринг ${c.score}% · ${c.dateSigned}`;
+
+        const matched = c.log?.matched || [];
+        const differed = c.log?.differed || [];
+        const mNote = c.log?.manufacturerNote || "—";
+
+        const html = `
+          <div class="kv">
+            <div class="k">Ссылка в ЕИС</div>
+            <div class="v"><a href="${c.eisUrl}" target="_blank" rel="noopener noreferrer">${c.eisUrl}</a></div>
+
+            <div class="k">Цена за единицу</div>
+            <div class="v"><b>${fmtMoney(c.unitPrice)}</b></div>
+
+            <div class="k">Тип совпадения</div>
+            <div class="v">${c.matchType}</div>
+
+            <div class="k">Статус принятия</div>
+            <div class="v">${c.accepted ? "<b>Принят</b>" : "Не принят"}</div>
+
+            <div class="k">Производитель</div>
+            <div class="v">${escapeHtml(c.manufacturerNote || "—")} ${c.manufacturerMismatch ? "<span class='chip warn' style='margin-left:8px'><span class='mini-dot'></span>требует проверки</span>" : ""}</div>
+
+            <div class="k">Пояснение</div>
+            <div class="v muted">${escapeHtml(mNote)}</div>
+            
+            ${c.is2025Contract ? `
+            <div class="k">Контракт 2025 года</div>
+            <div class="v">
+              ${c.manufacturerCheck2025 
+                ? `<span class="chip ${c.manufacturerMatch2025 ? 'success' : 'danger'}"><span class="mini-dot"></span>Производитель ${c.manufacturerMatch2025 ? 'совпал' : 'не совпал'}</span>`
+                : '<span class="chip neutral"><span class="mini-dot"></span>Производитель не указан</span>'
+              }
+            </div>
+            ` : ''}
+          </div>
+
+          <div class="logbox">
+            <b>Лог сверки характеристик</b>
+            <ul>
+              <li><b>Совпало:</b> ${matched.length ? escapeHtml(matched.join(", ")) : "—"}</li>
+              <li><b>Отличается:</b> ${differed.length ? escapeHtml(differed.join(", ")) : "—"}</li>
+            </ul>
+            <div class="hint">Лог можно скачать отдельным TXT (кнопка «Лог сверки» сверху).</div>
+          </div>
+
+          <div style="margin-top:12px" class="inline-actions">
+            <button class="btn small primary" id="modalToggleAccept">${c.accepted ? "Снять принятие" : "Принять к расчёту"}</button>
+            <button class="btn small" id="modalToggleSelect">${c.selected ? "Снять из НМЦ" : "Добавить в НМЦ"}</button>
+          </div>
+        `;
+
+        $("#modalBody").innerHTML = html;
+
+        // Button actions in modal
+        $("#modalToggleAccept").addEventListener("click", ()=>{
+          c.accepted = !c.accepted;
+          toast("Статус обновлён", c.accepted ? "Контракт помечен как принятый." : "Контракт помечен как не принятый.", "success", 2400);
+          renderResults();
+          openContractModal(searchId, contractId); // refresh modal content
+        });
+
+        $("#modalToggleSelect").addEventListener("click", ()=>{
+          toggleSelectContract(searchId, contractId, !c.selected);
+          openContractModal(searchId, contractId);
+        });
+
+        $("#modalOpenEIS").onclick = ()=>{
+          window.open(c.eisUrl, "_blank", "noopener,noreferrer");
+        };
+        $("#modalDownloadLog").onclick = ()=>{
+          const txt = buildContractLogTxt(searchId, c);
+          downloadText(`log_${c.contractNumber}.txt`, txt);
+          toast("Лог скачан", `Файл log_${c.contractNumber}.txt сформирован.`, "success", 2500);
+        };
+
+        $("#modalBackdrop").setAttribute("aria-hidden","false");
+      }
+
+      function closeContractModal(){
+        $("#modalBackdrop").setAttribute("aria-hidden","true");
+      }
+
+      function buildContractLogTxt(searchId, c){
+        const hist = state.history.find(h=>h.id===searchId);
+        const lines = [];
+        lines.push(`ЛОГ СВЕРКИ (мок)`);
+        if (hist){
+          lines.push(`Поиск: ${hist.queryTitle}`);
+          lines.push(`КТРУ: ${hist.ktru}`);
+          lines.push(`Дата поиска: ${fmtDT(hist.createdAt)}`);
+        }
+        lines.push(``);
+        lines.push(`Контракт: ${c.contractNumber}`);
+        lines.push(`Дата заключения: ${c.dateSigned}`);
+        lines.push(`Тип совпадения: ${c.matchType}`);
+        lines.push(`Скоринг: ${c.score}%`);
+        lines.push(`Цена за ед.: ${fmtMoney(c.unitPrice)}`);
+        lines.push(`Ссылка: ${c.eisUrl}`);
+        lines.push(``);
+        lines.push(`Производитель: ${c.manufacturerNote || "—"}`);
+        if (c.manufacturerMismatch) lines.push(`ВНИМАНИЕ: возможное расхождение производителя с заявкой/ТЗ.`);
+        lines.push(``);
+        lines.push(`Совпавшие характеристики:`);
+        (c.log?.matched || []).forEach(x=>lines.push(`- ${x}`));
+        if (!(c.log?.matched || []).length) lines.push(`- —`);
+        lines.push(``);
+        lines.push(`Отличающиеся характеристики:`);
+        (c.log?.differed || []).forEach(x=>lines.push(`- ${x}`));
+        if (!(c.log?.differed || []).length) lines.push(`- —`);
+        lines.push(``);
+        lines.push(`Комментарий: ${c.log?.manufacturerNote || "—"}`);
+        return lines.join("\n");
+      }
+
+      // ---------- Selection logic (top 3 selected) ----------
+      function toggleSelectContract(searchId, contractId, checked){
+        const list = state.resultsBySearchId[searchId] || [];
+        const item = list.find(x=>x.id===contractId);
+        if (!item) return;
+
+        // if selecting: allow more than 3, but auto-keep top 3 selected by score (UX: "топ-3 для НМЦ")
+        item.selected = !!checked;
+
+        const selected = list.filter(x=>x.selected).sort((a,b)=>b.score-a.score);
+        if (selected.length > 3){
+          // keep best 3 selected; unselect the rest
+          selected.slice(3).forEach(x=>{ x.selected = false; });
+          toast("Ограничение НМЦ", "Для НМЦ остаются выбранными только 3 лучших по скорингу.", "warn", 3200);
+        }else{
+          toast("Изменено", checked ? "Добавлено в НМЦ." : "Убрано из НМЦ.", "success", 2200);
+        }
+
+        // accepted mirrors selection for simplicity in mock
+        list.forEach(x=>{
+          if (x.selected) x.accepted = true;
+        });
+
+        renderResults();
+        updateKpisForSearch(searchId);
+      }
+
+      // ---------- History -> Results navigation ----------
+      function openResultsForSearch(searchId, switchTab=true){
+        state.activeSearchId = searchId;
+        // reset results page
+        state.paging.results.page = 1;
+
+        // update subtitle
+        const hist = state.history.find(h=>h.id===searchId);
+        $("#resultsSubtitle").textContent = hist
+          ? `Поиск: ${hist.queryTitle} · КТРУ ${hist.ktru} · ${fmtDT(hist.createdAt)}`
+          : `Результаты (мок)`;
+
+        if (switchTab) setTab("results");
+        else renderResults();
+
+        // subtle toast
+        toast("Открыты результаты", "Показаны данные выбранного поиска.", "success", 2000);
+      }
+
+      // ---------- Exports ----------
+      function exportReportForSearch(searchId){
+        const hist = state.history.find(h=>h.id===searchId);
+        const list = state.resultsBySearchId[searchId] || [];
+        const selected = list.filter(x=>x.selected).slice(0,3);
+
+        const lines = [];
+        lines.push(`ОТЧЁТ ПО СВЕРКЕ (мок)`);
+        lines.push(`Дата формирования: ${fmtDT(new Date())}`);
+        if (hist){
+          lines.push(`Поиск: ${hist.queryTitle}`);
+          lines.push(`КТРУ: ${hist.ktru}`);
+          lines.push(`Статус: ${hist.status}`);
+          lines.push(`Найдено в ЕИС: ${fmtInt(hist.foundTotal)}`);
+          lines.push(`Обработано: ${fmtInt(hist.contractsProcessed)}/${fmtInt(hist.limit)}`);
+        }
+        lines.push(``);
+        lines.push(`Выбранные для НМЦ (топ-3):`);
+        if (!selected.length){
+          lines.push(`— не выбраны (поставьте галочки в таблице результатов).`);
+        }else{
+          selected.forEach((c, i)=>{
+            lines.push(`${i+1}) ${c.contractNumber} · ${c.dateSigned} · ${fmtMoney(c.unitPrice)} · ${c.score}% · ${c.matchType}`);
+            if (c.manufacturerMismatch) lines.push(`   ⚠️ Производитель: ${c.manufacturerNote} (возможное расхождение)`);
+          });
+        }
+
+        lines.push(``);
+        lines.push(`Детализация по проверенным контрактам (первые 20 строк):`);
+        list.slice(0,20).forEach((c)=>{
+          lines.push(`- ${c.contractNumber} | ${c.dateSigned} | ${fmtMoney(c.unitPrice)} | ${c.score}% | ${c.matchType} | ${c.accepted ? "Принят" : "Не принят"} | ${c.manufacturerMismatch ? "⚠️ производитель" : ""}`);
+        });
+
+        lines.push(``);
+        lines.push(`Примечание: в реальной системе логи формируются на основе вкладок «Платежи и объекты закупки» и «Вложения» (для 2025+).`);
+
+        const fname = hist ? `report_${safeName(hist.queryTitle)}_${fmtFileDate(hist.createdAt)}.txt` : `report_${Date.now()}.txt`;
+        downloadText(fname, lines.join("\n"));
+        toast("Отчёт сформирован", `Скачан файл ${fname}.`, "success");
+      }
+
+      function safeName(s){
+        return String(s || "search").replace(/[^\p{L}\p{N}\-_ ]/gu,"").trim().slice(0,48).replace(/\s+/g,"_");
+      }
+      function fmtFileDate(d){
+        const dt = (d instanceof Date) ? d : new Date(d);
+        return `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}_${pad2(dt.getHours())}${pad2(dt.getMinutes())}`;
+      }
+
+      // ---------- Search simulation ("online") ----------
+      function bindSearchModule(){
+        $("#btnPrefill").addEventListener("click", ()=>{
+          $("#inpQueryTitle").value = `Монитор 27" IPS 2560×1440 (QHD), яркость ≥ 300, HDMI/DP`;
+          $("#selLaw").value = "44-FZ";
+          $("#selExec").value = "completed_or_terminated";
+          $("#selRegion").value = "NWFO";
+          $("#selPeriod").value = "3y";
+          $("#inpKTRU").value = "26.20.16.110-00000001";
+          $("#inpLimit").value = 30;
+          $("#txtSpecs").value = [
+            "диагональ 27",
+            "матрица IPS",
+            "разрешение 2560×1440",
+            "яркость ≥ 300 кд/м²",
+            "интерфейсы HDMI, DisplayPort",
+            "углы обзора 178/178",
+            "антибликовое покрытие"
+          ].join("; ");
+          toast("Пример заполнен", "Поля подготовлены для демо-поиска.", "success", 2600);
+        });
+
+        $("#btnStart").addEventListener("click", ()=>{
+          startSearch();
+        });
+
+        $("#btn-help").addEventListener("click", ()=>{
+          toast(
+            "Подсказка",
+            "Заполните КТРУ и характеристики (можно импортировать файл ТЗ). По клику в истории — открываются результаты. Фильтры — в заголовках таблиц.",
+            "warn",
+            5200
+          );
+        });
+
+        $("#btn-export-report").addEventListener("click", ()=>{
+          if (!state.activeSearchId){
+            toast("Нечего экспортировать", "Запустите поиск, чтобы появились результаты.", "warn");
+            return;
+          }
+          exportReportForSearch(state.activeSearchId);
+        });
+
+        $("#btn-open-summary").addEventListener("click", openSummary);
+
+        // file import mock
+        const drop = $("#dropZone");
+        const inp = $("#fileInput");
+        $("#btnPickFile").addEventListener("click", (e)=>{
+          e.preventDefault();
+          inp.click();
+        });
+
+        inp.addEventListener("change", ()=>{
+          const f = inp.files && inp.files[0];
+          if (!f) return;
+          handleFileMock(f);
+          inp.value = "";
+        });
+
+        // drag drop
+        ["dragenter","dragover"].forEach(ev=>{
+          drop.addEventListener(ev, (e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+            drop.style.borderColor = "rgba(37,99,235,.55)";
+          });
+        });
+        ["dragleave","drop"].forEach(ev=>{
+          drop.addEventListener(ev, (e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+            drop.style.borderColor = "";
+          });
+        });
+        drop.addEventListener("drop", (e)=>{
+          const f = e.dataTransfer.files && e.dataTransfer.files[0];
+          if (f) handleFileMock(f);
+        });
+
+        drop.addEventListener("keydown", (e)=>{
+          if (e.key==="Enter" || e.key===" "){
+            e.preventDefault();
+            inp.click();
+          }
+        });
+      }
+
+      function handleFileMock(file){
+        const ext = (file.name.split(".").pop() || "").toLowerCase();
+        toast("Файл получен", `${file.name} · имитация анализа ТЗ и заполнения характеристик`, "success", 4200);
+
+        // lightweight "parse" mock by extension
+        const baseSpecs = [
+          "срок поставки ≤ 30 дней",
+          "гарантия ≥ 12 мес",
+          "соответствие ТЗ: основные параметры",
+        ];
+
+        if (["doc","docx","pdf","html"].includes(ext)){
+          if (!$("#inpQueryTitle").value) $("#inpQueryTitle").value = "Товар из ТЗ (импорт)";
+          if (!$("#inpKTRU").value) $("#inpKTRU").value = "26.20.16.110-00000001";
+          const curr = $("#txtSpecs").value.trim();
+          const add = ext==="pdf"
+            ? ["диагональ 27", "разрешение 2560×1440", "яркость ≥ 300", ...baseSpecs]
+            : ["тип матрицы IPS", "HDMI/DP", ...baseSpecs];
+          $("#txtSpecs").value = curr ? (curr + "; " + add.join("; ")) : add.join("; ");
+        }else{
+          toast("Формат не поддержан", "Поддержка мок: doc/docx/pdf/html.", "danger", 4200);
+        }
+      }
+
+      function startSearch(){
+        if (state.running.timer){
+          toast("Поиск уже идёт", "Можно остановить в истории (кнопка «Остановить»).", "warn");
+          return;
+        }
+
+        const queryTitle = $("#inpQueryTitle").value.trim() || "Без названия (мок)";
+        const ktru = $("#inpKTRU").value.trim() || "—";
+        const limit = clamp(parseInt($("#inpLimit").value || "30", 10), 1, 300);
+
+        const createdAt = new Date();
+        const searchId = uid();
+
+        // create history row
+        const hist = {
+          id: searchId,
+          createdAt,
+          queryTitle,
+          ktru,
+          status: "В процессе",
+          avgPrice: null,
+          contractsProcessed: 0,
+          limit,
+          foundTotal: rand(40, 420),
+          duration: "00:00",
+          notes: "Идёт обработка самых свежих контрактов…",
+          hasResults: true
+        };
+
+        state.history.unshift(hist);
+        state.activeSearchId = searchId;
+        state.resultsBySearchId[searchId] = [];
+        state.paging.history.page = 1;
+        state.paging.results.page = 1;
+
+        // switch to results immediately
+        $("#resultsSubtitle").textContent = `Поиск: ${hist.queryTitle} · КТРУ ${hist.ktru} · ${fmtDT(hist.createdAt)}`;
+        setTab("results");
+
+        toast("Поиск запущен", "Идёт онлайн-обновление результатов и статуса.", "success", 3200);
+        updateBadges();
+        renderAll();
+
+        // start online timer
+        state.running.searchId = searchId;
+        state.running.step = 0;
+
+        const t0 = Date.now();
+        state.running.timer = setInterval(()=>{
+          const h = state.history.find(x=>x.id===searchId);
+          if (!h){
+            stopSearch("Ошибка: поиск не найден");
+            return;
+          }
+
+          // simulate processing
+          state.running.step += 1;
+          const step = state.running.step;
+
+          // every tick: +1..3 processed, add contracts occasionally
+          const inc = rand(1,3);
+          h.contractsProcessed = clamp(h.contractsProcessed + inc, 0, h.limit);
+
+          // update duration
+          const dt = Math.floor((Date.now()-t0)/1000);
+          const mm = pad2(Math.floor(dt/60));
+          const ss = pad2(dt%60);
+          h.duration = `${mm}:${ss}`;
+
+          // add contracts (more at start)
+          const addCount = step <= 4 ? rand(2,4) : rand(1,2);
+          for (let i=0; i<addCount; i++){
+            state.resultsBySearchId[searchId].push(makeContract(i, h.queryTitle, h.ktru));
+          }
+
+          // compute "accepted"/selected: auto-select best 3 by score among first N checked
+          const list = state.resultsBySearchId[searchId];
+          list.sort((a,b)=>b.score-a.score);
+
+          // auto-pick 3 if not already picked
+          const already = list.filter(x=>x.selected).length;
+          if (already < 3 && list.length >= 3){
+            list.forEach((x)=>x.selected=false);
+            list.slice(0,3).forEach((x)=>{ x.selected = true; x.accepted = true; });
+          }
+
+          // keep selected on top (render layer does it too)
+          updateKpisForSearch(searchId);
+
+          // update notes
+          h.notes = h.contractsProcessed < h.limit
+            ? `Проверено ${h.contractsProcessed} контрактов. Обновления онлайн…`
+            : `Лимит ${h.limit} достигнут. Формируем итог…`;
+
+          // finish condition
+          if (h.contractsProcessed >= h.limit || step >= 12){
+            // decide final status
+            const sel = (state.resultsBySearchId[searchId] || []).filter(x=>x.selected);
+            if (sel.length >= 3) {
+              h.status = "Успешно";
+              h.notes = "Найдено 3 релевантных контракта. НМЦ рассчитана.";
+            } else if (sel.length > 0){
+              h.status = "Частично";
+              h.notes = "Найдено менее 3 подходящих контрактов. Требуется ручная проверка/расширение критериев.";
+            } else {
+              h.status = "Частично";
+              h.notes = "Подходящих контрактов не найдено по основным характеристикам.";
+            }
+            // average price
+            const avg = sel.length ? sel.reduce((s,x)=>s+Number(x.unitPrice||0),0)/sel.length : null;
+            h.avgPrice = avg;
+            stopSearch(null, /*silent*/true);
+            toast("Поиск завершён", `Статус: ${h.status}.`, "success", 4200);
+          }
+
+          // render
+          renderAll();
+        }, 900);
+      }
+
+      function stopSearch(reason=null, silent=false){
+        if (state.running.timer){
+          clearInterval(state.running.timer);
+          state.running.timer = null;
+        }
+
+        const sid = state.running.searchId;
+        state.running.searchId = null;
+        state.running.step = 0;
+
+        if (sid){
+          const h = state.history.find(x=>x.id===sid);
+          if (h && reason){
+            h.status = "Остановлено";
+            h.notes = reason;
+          }
+        }
+
+        if (!silent){
+          toast("Поиск остановлен", reason || "Остановлено.", "warn", 3200);
+        }
+        renderAll();
+      }
+
+      // ---------- Pagination binds ----------
+      function bindPaging(){
+        // history
+        $("#historyPrev").addEventListener("click", ()=>{
+          state.paging.history.page = Math.max(1, state.paging.history.page - 1);
+          renderHistory();
+        });
+        $("#historyNext").addEventListener("click", ()=>{
+          state.paging.history.page += 1;
+          renderHistory();
+        });
+        $("#historyPageSize").addEventListener("change", (e)=>{
+          state.paging.history.size = parseInt(e.target.value, 10);
+          state.paging.history.page = 1;
+          renderHistory();
+        });
+
+        // results
+        $("#resultsPrev").addEventListener("click", ()=>{
+          state.paging.results.page = Math.max(1, state.paging.results.page - 1);
+          renderResults();
+        });
+        $("#resultsNext").addEventListener("click", ()=>{
+          state.paging.results.page += 1;
+          renderResults();
+        });
+        $("#resultsPageSize").addEventListener("change", (e)=>{
+          state.paging.results.size = parseInt(e.target.value, 10);
+          state.paging.results.page = 1;
+          renderResults();
+        });
+      }
+
+      // ---------- Misc binds ----------
+      function bindHistoryButtons(){
+        $("#btn-demo-fill").addEventListener("click", seedDemoHistory);
+        $("#btn-clear").addEventListener("click", ()=>{
+          if (state.running.timer){
+            toast("Нельзя очистить", "Сначала остановите текущий поиск.", "warn");
+            return;
+          }
+          state.history = [];
+          state.resultsBySearchId = {};
+          state.activeSearchId = null;
+          state.filters.history = {};
+          state.filters.results = {};
+          state.paging.history.page = 1;
+          state.paging.results.page = 1;
+          toast("Очищено", "Мок-данные удалены.", "success", 2500);
+          updateBadges();
+          renderAll();
+        });
+      }
+
+      function bindModals(){
+        $("#modalClose").addEventListener("click", closeContractModal);
+        $("#modalBackdrop").addEventListener("click", (e)=>{
+          if (e.target === $("#modalBackdrop")) closeContractModal();
+        });
+
+        $("#summaryClose").addEventListener("click", closeSummary);
+        $("#summaryBackdrop").addEventListener("click", (e)=>{
+          if (e.target === $("#summaryBackdrop")) closeSummary();
+        });
+
+        $("#summaryCopy").addEventListener("click", ()=>{
+          const sid = state.activeSearchId;
+          if (!sid){
+            toast("Нет данных", "Запустите поиск.", "warn");
+            return;
+          }
+          copyText(buildSummaryText(sid));
+        });
+      }
+
+      function updateBadges(){
+        $("#badge-history").textContent = fmtInt(state.history.length);
+        $("#badge-results").textContent = state.activeSearchId ? "последний" : "—";
+      }
+
+      function renderAll(){
+        renderHistory();
+        renderResults();
+      }
+
+      // ---------- Init ----------
+      function init(){
+        bindTabs();
+        bindFilters();
+        bindPaging();
+        bindHistoryButtons();
+        bindSearchModule();
+        bindModals();
+
+        // quick empty state
+        renderAll();
+
+        // small welcome toast
+        toast("Готово", "Интерфейс запущен. Заполните поля справа и нажмите «Начать поиск».", "success", 4200);
+      }
+      init();
+
+      // ensure "Stop" on unload
+      window.addEventListener("beforeunload", ()=>{
+        if (state.running.timer) stopSearch("Остановлено: закрытие страницы", true);
+      });
+    </script>
+
+  </div><!-- /app -->
+</body>
+</html>
+

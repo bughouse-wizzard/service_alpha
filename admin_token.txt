@@ -1,0 +1,6 @@
+Admin User: admin_test_w1l05oyw@example.com
+Password: AdminPassword123!
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMTYyNjMzMS0zODU0LTQ2ZmMtOTQ4Yy1iODczMjYzYTZjZWUiLCJleHAiOjE3NjkyNTIxOTQsInR5cGUiOiJhY2Nlc3MifQ.ZgmhfDZ2dnv8bJp4Qnmt5hVuRH_Ww5OKrEB0DUgiZ9U
+
+Frontend Admin Panel: http://192.168.88.178:5173/admin
+Backend API: http://192.168.88.178:8000

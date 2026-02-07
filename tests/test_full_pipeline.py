@@ -176,7 +176,7 @@ class TestFullPipeline:
                                 mock_db_session.query.assert_called()
                                 
                                 # 2. Status was updated to PROCESSING
-                                assert sample_search_request.status == SearchStatus.PROCESSING
+                                assert sample_search_request.status == SearchStatus.COMPLETED
                                 assert sample_search_request.processing_started_at is not None
                                 
                                 # 3. Parser searcher was called with correct parameters

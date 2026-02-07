@@ -1,0 +1,1538 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Сервис расчета НМЦК — MVP</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --panel:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:#e5e7eb;
+      --primary:#2563eb;
+      --primary-weak:#dbeafe;
+      --danger:#dc2626;
+      --danger-weak:#fee2e2;
+      --ok:#16a34a;
+      --ok-weak:#dcfce7;
+      --warn:#d97706;
+      --warn-weak:#ffedd5;
+      --shadow: 0 10px 30px rgba(15,23,42,.08);
+      --radius: 14px;
+      --focus: 0 0 0 4px rgba(37,99,235,.18);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+      color:var(--text);
+    }
+    a{color:var(--primary); text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    .app{min-height:100%; display:flex; flex-direction:column;}
+
+    header{
+      position:sticky; top:0; z-index:5;
+      backdrop-filter:saturate(180%) blur(10px);
+      background:rgba(246,247,251,.75);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar{
+      width:100%;
+      padding:14px 16px;
+      display:flex; gap:12px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .brand{display:flex; gap:10px; align-items:center; min-width: 260px;}
+    .logo{
+      width:38px; height:38px; border-radius:12px;
+      background: radial-gradient(circle at 30% 20%, #93c5fd 0%, #2563eb 40%, #1e40af 100%);
+      box-shadow:0 10px 20px rgba(37,99,235,.25);
+    }
+    .brand h1{margin:0; font-size:14px; line-height:1.2; font-weight:800; letter-spacing:.2px;}
+    .brand p{margin:0; font-size:12px; color:var(--muted);}
+
+    .nav{display:flex; gap:8px; align-items:center;}
+    .chip{
+      border:1px solid var(--border);
+      background:var(--panel);
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:13px;
+      color:var(--text);
+      display:flex; gap:8px; align-items:center;
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip[aria-pressed="true"]{
+      border-color: rgba(37,99,235,.35);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 0 8px 20px rgba(2,6,23,.06);
+    }
+    .chip .dot{width:8px; height:8px; border-radius:999px; background:var(--muted);}
+    .chip[aria-pressed="true"] .dot{background:var(--primary)}
+    .actions{display:flex; gap:8px; align-items:center; justify-content:flex-end; min-width: 260px;}
+
+    .btn{
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-size:13px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px;
+      transition: transform .05s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .btn:hover{border-color:#cbd5e1}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+      border-color: rgba(29,78,216,.4);
+      color:#fff;
+      box-shadow: 0 12px 25px rgba(37,99,235,.22);
+    }
+    .btn.primary:hover{box-shadow: 0 16px 30px rgba(37,99,235,.28)}
+    .btn:focus{outline:none; box-shadow: var(--focus)}
+    .kbd{
+      font-family:var(--mono);
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid var(--border);
+      padding:2px 6px;
+      border-radius:8px;
+      background:#fff;
+    }
+
+    /* ✅ FULL-WIDTH LAYOUT: no max-width */
+    main{
+      width:100%;
+      padding:18px 16px 40px;
+      flex:1;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap:14px;
+      align-items:start;
+      width:100%;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr}
+      .brand,.actions{min-width:unset}
+    }
+
+    .card{
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      width:100%;
+    }
+    .card .hd{
+      padding:14px 14px 12px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap:12px;
+    }
+    .card .hd h2{margin:0; font-size:14px; font-weight:800; letter-spacing:.2px;}
+    .sub{margin-top:4px; font-size:12px; color:var(--muted); line-height:1.35;}
+    .card .bd{padding:14px}
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .spacer{flex:1}
+    .field{display:flex; flex-direction:column; gap:6px; min-width: 180px; flex:1;}
+    .label{font-size:12px; color:var(--muted);}
+
+    input[type="text"], input[type="number"], select, textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      background:#fff;
+      color:var(--text);
+      transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    textarea{min-height: 92px; resize: vertical}
+    input:focus, select:focus, textarea:focus{outline:none; border-color: rgba(37,99,235,.45); box-shadow: var(--focus);}
+
+    .hint{font-size:12px; color:var(--muted);}
+    .divider{height:1px; background:var(--border); margin:12px 0}
+
+    /* ✅ tables: full width; on small screens horizontal scroll in wrapper */
+    .tablewrap{
+      overflow:auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background:#fff;
+      width:100%;
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      /* keep min width for readability, enables horizontal scroll on small */
+      min-width: 860px;
+    }
+    @media (min-width: 1280px){
+      table{min-width: 0;} /* ✅ big screens: take full width without forcing min */
+    }
+    th, td{
+      text-align:left;
+      padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      font-size:13px;
+      vertical-align:top;
+    }
+    th{
+      font-size:12px;
+      color:var(--muted);
+      background: #fafafa;
+      position:sticky; top:0; z-index:2;
+    }
+
+    .mono{font-family: var(--mono); font-size:12px}
+    .tag{
+      display:inline-flex; align-items:center; gap:6px;
+      border-radius: 999px;
+      padding:4px 8px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .tag .p{width:8px; height:8px; border-radius:999px; background: var(--muted);}
+    .tag.ok{border-color: rgba(22,163,74,.28); background: var(--ok-weak)}
+    .tag.ok .p{background: var(--ok)}
+    .tag.warn{border-color: rgba(217,119,6,.28); background: var(--warn-weak)}
+    .tag.warn .p{background: var(--warn)}
+    .tag.bad{border-color: rgba(220,38,38,.28); background: var(--danger-weak)}
+    .tag.bad .p{background: var(--danger)}
+    .tag.blue{border-color: rgba(37,99,235,.25); background: var(--primary-weak)}
+    .tag.blue .p{background: var(--primary)}
+
+    .rightcol{
+      position:sticky;
+      top:78px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      width:100%;
+    }
+    @media (max-width: 980px){
+      .rightcol{position:static}
+    }
+
+    .stat{
+      display:flex; flex-direction:column; gap:6px;
+      padding:12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+    .stat .k{font-size:12px; color:var(--muted)}
+    .stat .v{font-size:18px; font-weight:900; letter-spacing:.2px}
+    .stat .mini{font-size:12px; color:var(--muted)}
+    .statrow{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    @media (max-width: 520px){ .statrow{grid-template-columns:1fr} }
+
+    /* ✅ History row click UX */
+    tr.rowlink{cursor:pointer;}
+    tr.rowlink:hover td{background:#f8fbff}
+    tr.rowlink:active td{background:#eef6ff}
+
+    /* Toasts */
+    .toasts{
+      position:fixed; z-index:50;
+      right:16px; bottom:16px;
+      display:flex; flex-direction:column; gap:10px;
+      max-width: 360px;
+    }
+    .toast{
+      background: var(--panel);
+      border:1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding:10px 10px;
+      display:flex; gap:10px; align-items:flex-start;
+      animation: pop .18s ease-out;
+    }
+    @keyframes pop{ from{transform: translateY(6px); opacity:.0} to{transform: translateY(0); opacity:1} }
+    .toast .ico{
+      width:28px; height:28px; border-radius: 10px;
+      display:flex; align-items:center; justify-content:center;
+      background:#f1f5f9;
+      border:1px solid var(--border);
+      flex:0 0 auto;
+      font-weight:900;
+    }
+    .toast.ok .ico{background: var(--ok-weak); border-color: rgba(22,163,74,.25); color: var(--ok)}
+    .toast.warn .ico{background: var(--warn-weak); border-color: rgba(217,119,6,.25); color: var(--warn)}
+    .toast.bad .ico{background: var(--danger-weak); border-color: rgba(220,38,38,.25); color: var(--danger)}
+    .toast .t{font-weight:800; font-size:13px; margin:0}
+    .toast .d{margin:2px 0 0; font-size:12px; color:var(--muted); line-height:1.35}
+    .toast .x{
+      margin-left:auto;
+      border:0; background:transparent;
+      cursor:pointer; color:var(--muted);
+      padding:4px 6px; border-radius:10px;
+    }
+    .toast .x:hover{background:#f1f5f9}
+
+    /* Modal */
+    .modalback{
+      position:fixed; inset:0; z-index:60;
+      background: rgba(2,6,23,.48);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .modalback.open{display:flex}
+    .modal{
+      width:min(980px, 100%);
+      max-height: min(86vh, 900px);
+      overflow:auto;
+      border-radius: 18px;
+      background: var(--panel);
+      border:1px solid rgba(148,163,184,.35);
+      box-shadow: 0 30px 80px rgba(2,6,23,.32);
+    }
+    .modal .mhd{
+      padding:14px 14px 12px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:flex-start; gap:10px; justify-content:space-between;
+    }
+    .modal .mhd h3{margin:0; font-size:14px; font-weight:900;}
+    .modal .mbd{padding:14px}
+    .modal .mft{
+      padding:12px 14px;
+      border-top:1px solid var(--border);
+      display:flex; gap:10px; justify-content:flex-end; align-items:center;
+      background: #fafafa;
+    }
+    .pill{
+      font-size:12px;
+      border:1px solid var(--border);
+      padding:5px 8px;
+      border-radius: 999px;
+      background:#fff;
+      color:var(--muted);
+    }
+
+    .diff{
+      background: var(--danger-weak) !important;
+      border-radius: 10px;
+      padding:2px 6px;
+      display:inline-block;
+      border:1px dashed rgba(220,38,38,.35);
+      color: #7f1d1d;
+    }
+    .nowrap{white-space:nowrap}
+    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;}
+
+    .sstatus{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);}
+    .sstatus .s{width:10px; height:10px; border-radius:999px; background: var(--muted); box-shadow: 0 0 0 4px rgba(100,116,139,.12);}
+    .sstatus.ok .s{background: var(--ok); box-shadow: 0 0 0 4px rgba(22,163,74,.12)}
+    .sstatus.warn .s{background: var(--warn); box-shadow: 0 0 0 4px rgba(217,119,6,.12)}
+    .sstatus.bad .s{background: var(--danger); box-shadow: 0 0 0 4px rgba(220,38,38,.12)}
+    .sstatus.blue .s{background: var(--primary); box-shadow: 0 0 0 4px rgba(37,99,235,.14)}
+
+    /* ✅ File import dropzone */
+    .drop{
+      border:1px dashed #cbd5e1;
+      background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      border-radius: 14px;
+      padding:12px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+    }
+    .drop.drag{
+      border-color: rgba(37,99,235,.55);
+      box-shadow: var(--focus);
+    }
+    .filelist{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+    .fileitem{
+      border:1px solid var(--border);
+      border-radius: 12px;
+      padding:10px 12px;
+      display:flex; gap:10px; align-items:flex-start;
+      background:#fff;
+    }
+    .fileitem .name{font-weight:800; font-size:13px}
+    .fileitem .meta{font-size:12px; color:var(--muted)}
+    .fileitem .rm{margin-left:auto}
+    .minirow{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="topbar">
+      <div class="brand" role="banner">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Сервис поиска и расчета НМЦК (MVP)</h1>
+          <p>ЕИС 44-ФЗ • 3 года • проверка совпадений</p>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Навигация">
+        <button class="chip" id="navHistory" aria-pressed="true" title="История (Alt+1)">
+          <span class="dot" aria-hidden="true"></span>
+          История
+          <span class="kbd">Alt+1</span>
+        </button>
+        <button class="chip" id="navDetail" aria-pressed="false" title="Результат (Alt+2)">
+          <span class="dot" aria-hidden="true"></span>
+          Результат
+          <span class="kbd">Alt+2</span>
+        </button>
+      </nav>
+
+      <div class="actions">
+        <button class="btn" id="btnHelp" title="Коротко про правила выбора">Правила</button>
+        <button class="btn primary" id="btnNewSearch" title="Новый поиск (N)">Новый поиск</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HISTORY VIEW -->
+    <section id="viewHistory" aria-label="Экран истории поисков">
+      <div class="grid">
+        <div class="card">
+          <div class="hd">
+            <div>
+              <h2>История поисков</h2>
+              <div class="sub">Клик по строке со статусом “Готово” откроет результаты.</div>
+            </div>
+            <div class="row">
+              <div class="field" style="min-width:220px; max-width:360px">
+                <label class="label" for="historyQuery">Поиск по истории</label>
+                <input id="historyQuery" type="text" placeholder="КТРУ / наименование / статус…" />
+              </div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="tablewrap" aria-label="Таблица истории">
+              <table>
+                <thead>
+                <tr>
+                  <th class="nowrap">Дата и время</th>
+                  <th>Товар / КТРУ</th>
+                  <th class="nowrap">Статус</th>
+                  <th>Краткий итог</th>
+                  <th class="nowrap">Время поиска</th>
+                </tr>
+                </thead>
+                <tbody id="historyTbody"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="margin:10px 2px 0">
+              Наведите курсор на готовую строку и кликните — откроется экран результатов.
+            </p>
+          </div>
+        </div>
+
+        <aside class="rightcol" aria-label="Панель быстрого запуска">
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Новый поиск</h2>
+                <div class="sub">Введите требования и/или импортируйте исходные файлы, затем запустите поиск.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <form id="searchForm">
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="ktru">Код КТРУ</label>
+                    <input id="ktru" type="text" placeholder="Напр. 26.20.16.110-00000001" required />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="title">Наименование</label>
+                    <input id="title" type="text" placeholder="Напр. Принтер лазерный" required />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="region">Округ</label>
+                    <select id="region">
+                      <option>Северо-Западный ФО</option>
+                      <option>Центральный ФО</option>
+                      <option>Приволжский ФО</option>
+                      <option>Южный ФО</option>
+                      <option>Сибирский ФО</option>
+                      <option>Уральский ФО</option>
+                      <option>Дальневосточный ФО</option>
+                      <option>Северо-Кавказский ФО</option>
+                    </select>
+                  </div>
+                  <div class="field" style="min-width:220px">
+                    <label class="label" for="brand">Производитель (опционально)</label>
+                    <input id="brand" type="text" placeholder="Напр. HP / Canon / Lenovo…" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="chars">Характеристики (ключ: значение)</label>
+                    <textarea id="chars" placeholder="Пример:
+Скорость печати: ≥ 30 стр/мин
+Разрешение: ≥ 1200 dpi
+Двусторонняя печать: да
+Интерфейс: USB"></textarea>
+                    <div class="hint">Можно оставить пустым и использовать импорт (мок-парсинг).</div>
+                  </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- ✅ IMPORT -->
+                <div class="field" style="min-width:unset">
+                  <div class="label">Импорт исходных файлов</div>
+                  <div class="drop" id="drop">
+                    <div>
+                      <div style="font-weight:900; font-size:13px">Перетащите файлы сюда</div>
+                      <div class="hint">Поддержка (мок): .doc/.docx, .pdf, .xlsx, .csv</div>
+                    </div>
+                    <div class="minirow">
+                      <input class="sr" id="fileInput" type="file" multiple
+                             accept=".doc,.docx,.pdf,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"/>
+                      <button class="btn" type="button" id="btnPickFiles">Выбрать файлы</button>
+                    </div>
+                  </div>
+                  <div class="filelist" id="fileList" aria-label="Список импортированных файлов"></div>
+                  <div class="hint" id="importHint" style="margin-top:8px">Файлы не загружатся никуда — только мок-обработка в браузере.</div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="row">
+                  <button class="btn primary" type="submit" id="btnRun">▶ Запустить поиск</button>
+                  <button class="btn" type="button" id="btnFillDemo">Заполнить пример</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Статусы обработки</h2>
+                <div class="sub">Очередь → поиск → готово, с уведомлениями.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="statrow">
+                <div class="stat">
+                  <div class="k">В очереди</div>
+                  <div class="v" id="statQueue">0</div>
+                  <div class="mini">ожидают старта</div>
+                </div>
+                <div class="stat">
+                  <div class="k">В поиске</div>
+                  <div class="v" id="statRunning">0</div>
+                  <div class="mini">в фоне</div>
+                </div>
+                <div class="stat">
+                  <div class="k">Готово</div>
+                  <div class="v" id="statDone">0</div>
+                  <div class="mini">с результатом</div>
+                </div>
+                <div class="stat">
+                  <div class="k">Среднее время</div>
+                  <div class="v" id="statAvg">—</div>
+                  <div class="mini">по мок-поискам</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- DETAIL VIEW -->
+    <section id="viewDetail" aria-label="Экран детального результата" style="display:none">
+      <div class="grid">
+        <div class="card">
+          <div class="hd">
+            <div>
+              <h2>Детальный результат</h2>
+              <div class="sub" id="detailSub">Выберите 3 контракта для расчёта НМЦК. Контракты должны быть от разных поставщиков.</div>
+            </div>
+            <div class="row" style="gap:8px">
+              <button class="btn" id="btnBackToHistory">← В историю</button>
+              <button class="btn" id="btnExportMock">Экспорт (мок)</button>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="row" style="align-items:flex-end">
+              <div class="field" style="min-width:240px">
+                <div class="label">Объект</div>
+                <div style="font-weight:900" id="objTitle">—</div>
+                <div class="hint mono" id="objKtru">—</div>
+              </div>
+              <div class="field" style="min-width:220px">
+                <label class="label" for="filterCategory">Категория</label>
+                <select id="filterCategory">
+                  <option value="all">Все</option>
+                  <option value="identical">Идентичные</option>
+                  <option value="homogeneous">Однородные</option>
+                  <option value="vendorDiff">Производитель отличается</option>
+                </select>
+              </div>
+              <div class="field" style="min-width:220px">
+                <label class="label" for="filterMinMatch">Мин. совпадение, %</label>
+                <input id="filterMinMatch" type="number" min="0" max="100" value="0" />
+              </div>
+              <div class="field" style="min-width:220px">
+                <label class="label" for="filterText">Поиск</label>
+                <input id="filterText" type="text" placeholder="Контракт / поставщик…" />
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="tablewrap" aria-label="Таблица контрактов">
+              <table>
+                <thead>
+                <tr>
+                  <th class="nowrap">В расчет</th>
+                  <th>№ Контракта</th>
+                  <th>Поставщик</th>
+                  <th class="nowrap">Дата</th>
+                  <th class="nowrap">Цена за ед.</th>
+                  <th class="nowrap">Совпад., %</th>
+                  <th class="nowrap">Производитель</th>
+                  <th class="nowrap">Категория</th>
+                  <th class="nowrap">Лог сверки</th>
+                </tr>
+                </thead>
+                <tbody id="contractsTbody"></tbody>
+              </table>
+            </div>
+
+            <p class="hint" style="margin:10px 2px 0">
+              Первые в списке — выбранные для расчёта. При нарушении правила “3 разных поставщика” появится предупреждение.
+            </p>
+          </div>
+        </div>
+
+        <aside class="rightcol" aria-label="Панель расчёта">
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Расчет НМЦК</h2>
+                <div class="sub">Средняя цена по выбранным контрактам (за единицу).</div>
+              </div>
+              <div class="sstatus blue" id="calcStatus">
+                <span class="s" aria-hidden="true"></span>
+                <span id="calcStatusText">Готово к расчету</span>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="stat">
+                <div class="k">Выбрано контрактов</div>
+                <div class="v" id="selCount">0</div>
+                <div class="mini" id="selHint">Нужно выбрать 3 (разные поставщики)</div>
+              </div>
+              <div class="divider"></div>
+              <div class="stat">
+                <div class="k">Предложенный НМЦК</div>
+                <div class="v" id="nmck">—</div>
+                <div class="mini" id="nmckMini">Рассчитывается автоматически</div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="row">
+                <button class="btn primary" id="btnAutoPick">Автовыбор 3 лучших</button>
+                <button class="btn" id="btnClearPick">Сбросить</button>
+              </div>
+
+              <p class="hint" style="margin:10px 2px 0">
+                Автовыбор: приоритет максимальный % совпадения, затем цена, и разные поставщики.
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Требования</h2>
+                <div class="sub">Из формы и/или импортированных файлов (мок).</div>
+              </div>
+            </div>
+            <div class="bd">
+              <div class="field" style="min-width:unset">
+                <div class="label">Производитель</div>
+                <div id="reqBrand" style="font-weight:900">—</div>
+              </div>
+              <div class="divider"></div>
+              <div class="field" style="min-width:unset">
+                <div class="label">Характеристики</div>
+                <div id="reqChars" class="hint" style="white-space:pre-wrap">—</div>
+              </div>
+              <div class="divider"></div>
+              <div class="field" style="min-width:unset">
+                <div class="label">Импортированные файлы</div>
+                <div id="reqFiles" class="hint">—</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div class="toasts" id="toasts" aria-live="polite" aria-relevant="additions"></div>
+
+  <!-- Modal -->
+  <div class="modalback" id="modalBack" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="mhd">
+        <div>
+          <h3 id="modalTitle">—</h3>
+          <div class="sub" id="modalSub">—</div>
+        </div>
+        <button class="btn" id="modalCloseTop" title="Закрыть (Esc)">✕ Закрыть</button>
+      </div>
+      <div class="mbd" id="modalBody"></div>
+      <div class="mft" id="modalFooter">
+        <span class="pill" id="modalPill">—</span>
+        <div class="spacer"></div>
+        <button class="btn" id="modalClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Helpers ----------
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const fmtRub = (n) => new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits: 2 }).format(n);
+  const fmtDate = (iso) => new Date(iso).toLocaleDateString('ru-RU');
+  const pad2 = (v)=> String(v).padStart(2,'0');
+  const uid = () => Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+
+  function escapeHtml(str){
+    return String(str ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  // Toasts
+  const toasts = $('#toasts');
+  function toast(type, title, desc, ttl=4200){
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `
+      <div class="ico" aria-hidden="true">${type==='ok'?'✓':type==='warn'?'!':'×'}</div>
+      <div>
+        <p class="t">${escapeHtml(title)}</p>
+        <p class="d">${escapeHtml(desc || '')}</p>
+      </div>
+      <button class="x" aria-label="Закрыть уведомление">✕</button>
+    `;
+    const kill = () => { el.style.opacity = '0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(), 160); };
+    el.querySelector('.x').addEventListener('click', kill);
+    toasts.appendChild(el);
+    setTimeout(kill, ttl);
+  }
+
+  // Modal
+  const modalBack = $('#modalBack');
+  const modalTitle = $('#modalTitle');
+  const modalSub = $('#modalSub');
+  const modalBody = $('#modalBody');
+  const modalPill = $('#modalPill');
+  const modalClose = $('#modalClose');
+  const modalCloseTop = $('#modalCloseTop');
+  let modalOnClose = null;
+
+  function openModal({title, sub, bodyHtml, pill, onClose}){
+    modalTitle.textContent = title || '';
+    modalSub.textContent = sub || '';
+    modalBody.innerHTML = bodyHtml || '';
+    modalPill.textContent = pill || '';
+    modalOnClose = typeof onClose === 'function' ? onClose : null;
+    modalBack.classList.add('open');
+    modalClose.focus();
+  }
+  function closeModal(){
+    modalBack.classList.remove('open');
+    if(modalOnClose) { try { modalOnClose(); } catch(e){} }
+    modalOnClose = null;
+  }
+  modalClose.addEventListener('click', closeModal);
+  modalCloseTop.addEventListener('click', closeModal);
+  modalBack.addEventListener('click', (e)=>{ if(e.target === modalBack) closeModal(); });
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && modalBack.classList.contains('open')) closeModal();
+  });
+
+  // ---------- State ----------
+  const state = {
+    searches: [],
+    activeSearchId: null,
+    uploads: [], // {id,name,size,type}
+    detail: {
+      requirements: null,
+      contracts: [],
+      selectedIds: new Set(),
+      files: []
+    }
+  };
+
+  // ---------- Seed history ----------
+  const seed = [
+    {
+      id: uid(),
+      startedAt: '2026-01-16T09:18:00.000Z',
+      ktru: '26.20.16.110-00000001',
+      title: 'Принтер лазерный',
+      status: 'Готово',
+      found: 6,
+      nmck: 13483.50,
+      durationSec: 94
+    },
+    {
+      id: uid(),
+      startedAt: '2026-01-15T14:42:00.000Z',
+      ktru: '28.23.13.110-00000002',
+      title: 'Шредер офисный',
+      status: 'Готово',
+      found: 5,
+      nmck: 18450.00,
+      durationSec: 71
+    },
+    {
+      id: uid(),
+      startedAt: '2026-01-16T10:27:00.000Z',
+      ktru: '26.20.17.110-00000009',
+      title: 'Ноутбук 15.6"',
+      status: 'Идет поиск',
+      found: null,
+      nmck: null,
+      durationSec: null
+    }
+  ];
+  state.searches = seed;
+
+  const mockPrinterReq = {
+    ktru: '26.20.16.110-00000001',
+    title: 'Принтер лазерный',
+    region: 'Северо-Западный ФО',
+    brand: 'HP',
+    charsText:
+`Скорость печати: ≥ 30 стр/мин
+Разрешение: ≥ 1200 dpi
+Двусторонняя печать: да
+Интерфейс: USB`
+  };
+
+  function buildMockContractsForPrinter(){
+    const base = [
+      { id: uid(), contractNo:'0172100000125000012', eisUrl:'https://zakupki.gov.ru/', supplier:'ООО «СеверТорг»', date:'2025-12-11', unitPrice:12990.00, match:100, category:'identical', vendorStatus:'Совпал', vendorDiff:false, scenario:'A',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'30 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'1200 dpi'},{k:'Двусторонняя печать',want:'да',got:'да'},{k:'Интерфейс',want:'USB',got:'USB'},{k:'Производитель',want:'HP',got:'HP'}]
+      },
+      { id: uid(), contractNo:'0172100000125000044', eisUrl:'https://zakupki.gov.ru/', supplier:'АО «Балтика-Снаб»', date:'2025-10-02', unitPrice:13350.50, match:96, category:'homogeneous', vendorStatus:'Совпал', vendorDiff:false, scenario:'B',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'29 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'1200 dpi'},{k:'Двусторонняя печать',want:'да',got:'да'},{k:'Интерфейс',want:'USB',got:'USB'},{k:'Производитель',want:'HP',got:'HP'}]
+      },
+      { id: uid(), contractNo:'0172100000125000101', eisUrl:'https://zakupki.gov.ru/', supplier:'ООО «Нева-Комплект»', date:'2025-09-21', unitPrice:14110.00, match:90, category:'homogeneous', vendorStatus:'Не совпал', vendorDiff:true, scenario:'B',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'30 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'1200 dpi'},{k:'Двусторонняя печать',want:'да',got:'да'},{k:'Интерфейс',want:'USB',got:'USB'},{k:'Производитель',want:'HP',got:'Canon'}]
+      },
+      { id: uid(), contractNo:'0172100000123000077', eisUrl:'https://zakupki.gov.ru/', supplier:'ООО «Арктика-Маркет»', date:'2023-02-05', unitPrice:11990.00, match:88, category:'homogeneous', vendorStatus:'Не указан', vendorDiff:false, scenario:'A',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'28 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'1200 dpi'},{k:'Двусторонняя печать',want:'да',got:'нет'},{k:'Интерфейс',want:'USB',got:'USB'},{k:'Производитель',want:'HP',got:'—'}]
+      },
+      { id: uid(), contractNo:'0172100000125000202', eisUrl:'https://zakupki.gov.ru/', supplier:'ООО «СеверТорг»', date:'2025-11-03', unitPrice:12880.00, match:92, category:'homogeneous', vendorStatus:'Совпал', vendorDiff:false, scenario:'B',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'30 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'600 dpi'},{k:'Двусторонняя печать',want:'да',got:'да'},{k:'Интерфейс',want:'USB',got:'USB'},{k:'Производитель',want:'HP',got:'HP'}]
+      },
+      { id: uid(), contractNo:'0172100000124000199', eisUrl:'https://zakupki.gov.ru/', supplier:'ООО «СеверТорг»', date:'2024-06-18', unitPrice:12400.00, match:94, category:'homogeneous', vendorStatus:'Совпал', vendorDiff:false, scenario:'A',
+        compare:[{k:'Скорость печати',want:'≥ 30 стр/мин',got:'30 стр/мин'},{k:'Разрешение',want:'≥ 1200 dpi',got:'1200 dpi'},{k:'Двусторонняя печать',want:'да',got:'да'},{k:'Интерфейс',want:'USB',got:'USB + Wi-Fi (доп.)'},{k:'Производитель',want:'HP',got:'HP'}]
+      }
+    ];
+    const defaultSelected = new Set([base[0].id, base[1].id, base[2].id]); // разные поставщики
+    return {contracts: base, selected: defaultSelected};
+  }
+
+  // ---------- Views ----------
+  const viewHistory = $('#viewHistory');
+  const viewDetail = $('#viewDetail');
+  const navHistory = $('#navHistory');
+  const navDetail = $('#navDetail');
+
+  function showView(which){
+    const isHistory = which === 'history';
+    viewHistory.style.display = isHistory ? '' : 'none';
+    viewDetail.style.display = isHistory ? 'none' : '';
+    navHistory.setAttribute('aria-pressed', isHistory ? 'true':'false');
+    navDetail.setAttribute('aria-pressed', isHistory ? 'false':'true');
+  }
+
+  // ---------- History render (row click) ----------
+  const historyTbody = $('#historyTbody');
+  const historyQuery = $('#historyQuery');
+  const statQueue = $('#statQueue'), statRunning = $('#statRunning'), statDone = $('#statDone'), statAvg = $('#statAvg');
+
+  function renderStats(){
+    const q = state.searches.filter(s => s.status === 'В очереди').length;
+    const r = state.searches.filter(s => s.status === 'Идет поиск').length;
+    const d = state.searches.filter(s => s.status === 'Готово').length;
+    statQueue.textContent = q;
+    statRunning.textContent = r;
+    statDone.textContent = d;
+    const doneDur = state.searches.filter(s => typeof s.durationSec === 'number').map(s => s.durationSec);
+    statAvg.textContent = doneDur.length ? `${Math.round(doneDur.reduce((a,b)=>a+b,0)/doneDur.length)}с` : '—';
+  }
+
+  function statusTag(s){
+    if(s==='Готово') return `<span class="tag ok"><span class="p"></span>Готово</span>`;
+    if(s==='Идет поиск') return `<span class="tag blue"><span class="p"></span>Идет поиск</span>`;
+    return `<span class="tag warn"><span class="p"></span>В очереди</span>`;
+  }
+
+  function renderHistory(){
+    const q = (historyQuery.value || '').trim().toLowerCase();
+    const rows = state.searches
+      .slice()
+      .sort((a,b)=> new Date(b.startedAt)-new Date(a.startedAt))
+      .filter(s => {
+        if(!q) return true;
+        const hay = `${s.ktru} ${s.title} ${s.status}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+    historyTbody.innerHTML = rows.map(s => {
+      const summary = s.status === 'Готово'
+        ? `Найдено: <b>${s.found}</b>, НМЦК: <b>${fmtRub(s.nmck)}</b>`
+        : s.status === 'Идет поиск'
+          ? `Поиск выполняется в фоне…`
+          : `Ожидает запуска…`;
+
+      const dur = (typeof s.durationSec === 'number') ? `${s.durationSec}с` : '—';
+      const clickable = (s.status === 'Готово');
+
+      return `
+        <tr class="${clickable ? 'rowlink' : ''}" data-row="${escapeHtml(s.id)}" aria-label="${clickable ? 'Открыть результат' : 'Недоступно'}">
+          <td class="nowrap">${fmtDate(s.startedAt)} ${new Date(s.startedAt).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</td>
+          <td><div style="font-weight:800">${escapeHtml(s.title)}</div><div class="hint mono">${escapeHtml(s.ktru)}</div></td>
+          <td class="nowrap">${statusTag(s.status)}</td>
+          <td>${summary}</td>
+          <td class="nowrap">${dur}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // ✅ click anywhere in row
+    $$('tr[data-row]').forEach(tr=>{
+      tr.addEventListener('click', ()=>{
+        const id = tr.getAttribute('data-row');
+        const s = state.searches.find(x=>x.id===id);
+        if(!s) return;
+        if(s.status !== 'Готово'){
+          toast('warn','Результат ещё не готов','Откройте задачу со статусом “Готово”.');
+          return;
+        }
+        openDetailForSearch(id);
+      });
+    });
+
+    renderStats();
+  }
+
+  historyQuery.addEventListener('input', renderHistory);
+
+  // ---------- Detail ----------
+  const objTitle = $('#objTitle');
+  const objKtru = $('#objKtru');
+  const reqBrand = $('#reqBrand');
+  const reqChars = $('#reqChars');
+  const reqFiles = $('#reqFiles');
+
+  const contractsTbody = $('#contractsTbody');
+  const filterCategory = $('#filterCategory');
+  const filterMinMatch = $('#filterMinMatch');
+  const filterText = $('#filterText');
+
+  const selCount = $('#selCount');
+  const selHint = $('#selHint');
+  const nmck = $('#nmck');
+  const nmckMini = $('#nmckMini');
+  const calcStatus = $('#calcStatus');
+  const calcStatusText = $('#calcStatusText');
+
+  function vendorTag(status){
+    if(status === 'Совпал') return `<span class="tag ok"><span class="p"></span>Совпал</span>`;
+    if(status === 'Не совпал') return `<span class="tag bad"><span class="p"></span>Не совпал</span>`;
+    if(status === 'Не указан') return `<span class="tag warn"><span class="p"></span>Не указан</span>`;
+    return `<span class="tag"><span class="p"></span>${escapeHtml(status)}</span>`;
+  }
+  function categoryTag(cat, match){
+    if(cat === 'identical') return `<span class="tag ok"><span class="p"></span>Идентичный</span>`;
+    return `<span class="tag warn"><span class="p"></span>Однородный • ${match}%</span>`;
+  }
+  function normalize(s){ return String(s ?? '').trim().toLowerCase().replace(/\s+/g,' '); }
+
+  function enforceSupplierRule(selectedContracts){
+    const suppliers = selectedContracts.map(c=>c.supplier);
+    const unique = new Set(suppliers);
+    return { ok: (selectedContracts.length === 3 && unique.size === 3), uniqueCount: unique.size, total: selectedContracts.length };
+  }
+  function computeNmck(selectedContracts){
+    if(!selectedContracts.length) return null;
+    return selectedContracts.reduce((a,c)=>a+c.unitPrice,0) / selectedContracts.length;
+  }
+  function sortSelectedFirst(list){
+    const sel = state.detail.selectedIds;
+    return list.slice().sort((a,b)=>{
+      const as = sel.has(a.id) ? 1 : 0;
+      const bs = sel.has(b.id) ? 1 : 0;
+      if(as !== bs) return bs - as;
+      if(a.match !== b.match) return b.match - a.match;
+      return a.unitPrice - b.unitPrice;
+    });
+  }
+
+  function openCompareModal(contract){
+    const rows = contract.compare.map(r=>{
+      const diff = normalize(r.want) !== normalize(r.got);
+      const gotHtml = diff ? `<span class="diff">${escapeHtml(r.got)}</span>` : escapeHtml(r.got);
+      return `
+        <tr>
+          <td style="width:28%"><b>${escapeHtml(r.k)}</b></td>
+          <td style="width:36%">${escapeHtml(r.want)}</td>
+          <td style="width:36%">${gotHtml}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const vendorLine = contract.vendorDiff
+      ? `<span class="tag bad"><span class="p"></span>Производитель отличается</span>`
+      : `<span class="tag ok"><span class="p"></span>Производитель совпадает</span>`;
+
+    openModal({
+      title: `Лог сверки • Контракт ${contract.contractNo}`,
+      sub: `${contract.supplier} • ${fmtDate(contract.date)} • Цена: ${fmtRub(contract.unitPrice)}`,
+      pill: `Совпадение: ${contract.match}%`,
+      bodyHtml: `
+        <div class="row" style="gap:10px; margin-bottom:12px">
+          <div class="tag blue"><span class="p"></span>Совпадение: ${contract.match}%</div>
+          ${vendorLine}
+          <div class="tag"><span class="p"></span>Сценарий: ${contract.scenario === 'B' ? 'Углублённый' : 'Стандартный'}</div>
+        </div>
+        <div class="tablewrap">
+          <table style="min-width: 640px">
+            <thead>
+              <tr>
+                <th>Параметр</th>
+                <th>Что искали</th>
+                <th>Что нашли</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin:10px 2px 0">Отличия подсвечены красным.</p>
+      `
+    });
+  }
+
+  function renderContracts(){
+    const cat = filterCategory.value;
+    const min = Math.max(0, Math.min(100, Number(filterMinMatch.value || 0)));
+    const q = (filterText.value || '').trim().toLowerCase();
+
+    let items = sortSelectedFirst(state.detail.contracts).filter(c => {
+      if(c.match < min) return false;
+      if(q){
+        const hay = `${c.contractNo} ${c.supplier}`.toLowerCase();
+        if(!hay.includes(q)) return false;
+      }
+      if(cat === 'identical' && c.category !== 'identical') return false;
+      if(cat === 'homogeneous' && c.category !== 'homogeneous') return false;
+      if(cat === 'vendorDiff' && !c.vendorDiff) return false;
+      return true;
+    });
+
+    contractsTbody.innerHTML = items.map(c=>{
+      const checked = state.detail.selectedIds.has(c.id);
+      const matchColor = c.match >= 97 ? 'ok' : (c.match >= 90 ? 'warn' : 'bad');
+      const matchTag = `<span class="tag ${matchColor}"><span class="p"></span>${c.match}%</span>`;
+
+      return `
+        <tr>
+          <td class="nowrap">
+            <label class="sr" for="chk_${c.id}">В расчет</label>
+            <input id="chk_${c.id}" type="checkbox" data-chk="${c.id}" ${checked?'checked':''}/>
+          </td>
+          <td>
+            <div class="mono">${escapeHtml(c.contractNo)}</div>
+            <div class="hint"><a href="${escapeHtml(c.eisUrl)}" target="_blank" rel="noreferrer">Открыть в ЕИС</a></div>
+          </td>
+          <td><div style="font-weight:800">${escapeHtml(c.supplier)}</div><div class="hint">${escapeHtml(c.scenario === 'B' ? 'Углублённый (вложение)' : 'Стандартный (карточка)')}</div></td>
+          <td class="nowrap">${escapeHtml(fmtDate(c.date))}</td>
+          <td class="nowrap"><b>${fmtRub(c.unitPrice)}</b></td>
+          <td class="nowrap">${matchTag}</td>
+          <td class="nowrap">${vendorTag(c.vendorStatus)}</td>
+          <td class="nowrap">${categoryTag(c.category, c.match)}</td>
+          <td class="nowrap"><button class="btn" data-details="${c.id}">Детали</button></td>
+        </tr>
+      `;
+    }).join('');
+
+    $$('input[data-chk]').forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        const id = inp.getAttribute('data-chk');
+        if(inp.checked) state.detail.selectedIds.add(id);
+        else state.detail.selectedIds.delete(id);
+        renderContracts();
+        renderCalcPanel();
+      });
+    });
+
+    $$('button[data-details]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-details');
+        const c = state.detail.contracts.find(x=>x.id===id);
+        if(c) openCompareModal(c);
+      });
+    });
+  }
+
+  function renderCalcPanel(){
+    const selected = state.detail.contracts.filter(c=> state.detail.selectedIds.has(c.id));
+    selCount.textContent = selected.length;
+
+    const rule = enforceSupplierRule(selected);
+    const v = computeNmck(selected);
+    nmck.textContent = (v === null) ? '—' : fmtRub(v);
+
+    const suppliers = Array.from(new Set(selected.map(c=>c.supplier)));
+    let hint = 'Нужно выбрать 3 (разные поставщики)';
+    let statusType = 'blue';
+    let statusText = 'Готово к расчету';
+
+    if(selected.length === 0){
+      statusType = 'blue'; statusText = 'Выберите контракты';
+    } else if(selected.length < 3){
+      statusType = 'warn'; statusText = `Выбрано ${selected.length} из 3`;
+      hint = `Добавьте ещё ${3 - selected.length} контракт(а)`;
+    } else if(selected.length > 3){
+      statusType = 'warn'; statusText = 'Выбрано больше 3';
+      hint = 'Рекомендуется оставить 3 контракта для расчета';
+    } else {
+      if(rule.uniqueCount < 3){
+        statusType = 'bad';
+        statusText = 'Нарушение: одинаковые поставщики';
+        hint = `Уникальных поставщиков: ${rule.uniqueCount} из 3`;
+        toast('bad', 'Правило поставщиков нарушено', 'Выберите 3 контракта от разных поставщиков.');
+      } else {
+        statusType = 'ok';
+        statusText = 'Корректный набор для НМЦК';
+        hint = `Поставщики: ${suppliers.join(' • ')}`;
+      }
+    }
+
+    selHint.textContent = hint;
+    calcStatus.className = `sstatus ${statusType}`;
+    calcStatusText.textContent = statusText;
+    nmckMini.textContent = selected.length ? `Среднее по выбранным: ${v === null ? '—' : fmtRub(v)}` : 'Рассчитывается автоматически';
+  }
+
+  function setDetailFrom(req, contracts, selectedSet, files){
+    state.detail.requirements = req;
+    state.detail.contracts = contracts;
+    state.detail.selectedIds = new Set(selectedSet);
+    state.detail.files = files || [];
+
+    objTitle.textContent = req.title || '—';
+    objKtru.textContent = req.ktru || '—';
+    reqBrand.textContent = req.brand ? req.brand : '—';
+    reqChars.textContent = req.charsText ? req.charsText : '—';
+    reqFiles.textContent = state.detail.files.length
+      ? state.detail.files.map(f=>f.name).join(', ')
+      : '—';
+
+    $('#detailSub').textContent = `Регион: ${req.region}. Выберите 3 контракта для расчёта НМЦК.`;
+    filterCategory.value = 'all';
+    filterMinMatch.value = 0;
+    filterText.value = '';
+
+    renderContracts();
+    renderCalcPanel();
+  }
+
+  function openDetailForSearch(searchId){
+    const s = state.searches.find(x=>x.id===searchId);
+    if(!s || s.status !== 'Готово'){
+      toast('warn','Результат недоступен','Откройте задачу со статусом “Готово”.');
+      return;
+    }
+
+    // Printer case
+    if(s.ktru === mockPrinterReq.ktru){
+      const req = {...mockPrinterReq};
+      const {contracts, selected} = buildMockContractsForPrinter();
+      setDetailFrom(req, contracts, selected, []);
+      state.activeSearchId = s.id;
+      showView('detail');
+      return;
+    }
+
+    // Generic
+    const req = { ktru: s.ktru, title: s.title, region:'Северо-Западный ФО', brand:'', charsText:'—' };
+    const suppliers = ['ООО «Снаб-Регион»','АО «Контракт-Плюс»','ООО «ТехМаркет»','ООО «Сервис-Поставка»'];
+    const contracts = Array.from({length: Math.max(4, s.found || 6)}).map((_,i)=>{
+      const supplier = suppliers[i % suppliers.length];
+      const match = 82 + Math.round(Math.random()*18);
+      const category = match >= 98 ? 'identical' : 'homogeneous';
+      const vendorDiff = Math.random() < .18;
+      const vendorStatus = vendorDiff ? 'Не совпал' : (Math.random()<.15 ? 'Не указан' : 'Совпал');
+      const unitPrice = (s.nmck || 12000) * (0.85 + Math.random()*0.25);
+
+      return {
+        id: uid(),
+        contractNo: `0${Math.floor(1000000000000000000 + Math.random()*9000000000000000000)}`,
+        eisUrl: 'https://zakupki.gov.ru/',
+        supplier,
+        date: `2025-${pad2(1+Math.floor(Math.random()*12))}-${pad2(1+Math.floor(Math.random()*28))}`,
+        unitPrice: Math.round(unitPrice*100)/100,
+        match,
+        category,
+        vendorStatus,
+        vendorDiff,
+        scenario: (Math.random() < .45) ? 'B' : 'A',
+        compare: [
+          {k:'КТРУ', want:req.ktru, got:req.ktru},
+          {k:'Наименование', want:req.title, got:req.title + (Math.random()<.3?' (аналог)':'')},
+          {k:'Производитель', want:'—', got: vendorStatus==='Не указан'?'—': (vendorDiff?'Другое':'Совпал')}
+        ]
+      };
+    });
+
+    const sorted = contracts.slice().sort((a,b)=> b.match-a.match || a.unitPrice-b.unitPrice);
+    const picked = [];
+    const setSup = new Set();
+    for(const c of sorted){
+      if(picked.length>=3) break;
+      if(setSup.has(c.supplier)) continue;
+      picked.push(c); setSup.add(c.supplier);
+    }
+    setDetailFrom(req, contracts, new Set(picked.map(c=>c.id)), []);
+    state.activeSearchId = s.id;
+    showView('detail');
+  }
+
+  // ---------- Nav ----------
+  navHistory.addEventListener('click', ()=> showView('history'));
+  navDetail.addEventListener('click', ()=>{
+    if(!state.activeSearchId){
+      toast('warn', 'Нет активного результата', 'Откройте готовую строку в истории.');
+      showView('history');
+      return;
+    }
+    showView('detail');
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    if(e.altKey && e.key === '1'){ e.preventDefault(); showView('history'); }
+    if(e.altKey && e.key === '2'){
+      e.preventDefault();
+      if(state.activeSearchId) showView('detail');
+      else toast('warn','Нет активного результата','Сначала откройте строку “Готово” в истории.');
+    }
+    if(e.key.toLowerCase() === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey){
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if(tag !== 'input' && tag !== 'textarea' && tag !== 'select'){
+        e.preventDefault();
+        showView('history');
+        $('#ktru').focus();
+        toast('ok','Новый поиск','Заполните форму и/или импортируйте файлы.', 2400);
+      }
+    }
+  });
+
+  $('#btnBackToHistory').addEventListener('click', ()=> showView('history'));
+  $('#btnNewSearch').addEventListener('click', ()=>{ showView('history'); $('#ktru').focus(); });
+
+  // Help
+  $('#btnHelp').addEventListener('click', ()=>{
+    openModal({
+      title: 'Правила выбора для расчёта',
+      sub: 'Справка для оператора (MVP).',
+      pill: 'Критично',
+      bodyHtml: `
+        <ul style="margin:0; padding-left:18px; line-height:1.55">
+          <li><b>Для НМЦК выбирайте 3 контракта</b> и следите, чтобы они были <b>от разных поставщиков</b>.</li>
+          <li>Приоритет: <b>Идентичные</b> (100%) → затем <b>Однородные</b> (по %).</li>
+          <li>“Детали” показывает сверку “что искали” vs “что нашли”, отличия подсвечены.</li>
+        </ul>
+      `
+    });
+  });
+
+  // Detail filters
+  [filterCategory, filterMinMatch, filterText].forEach(el=>{
+    el.addEventListener('input', ()=>{ renderContracts(); renderCalcPanel(); });
+  });
+
+  // Export mock
+  $('#btnExportMock').addEventListener('click', ()=>{
+    toast('ok', 'Экспорт сформирован (мок)', 'В реальной версии — выгрузка отчета/таблицы и расчета НМЦК.', 3800);
+  });
+
+  // Auto pick 3 best unique suppliers
+  $('#btnAutoPick').addEventListener('click', ()=>{
+    const sorted = state.detail.contracts.slice().sort((a,b)=> (b.match-a.match) || (a.unitPrice-b.unitPrice));
+    const picked = [];
+    const suppliers = new Set();
+    for(const c of sorted){
+      if(picked.length >= 3) break;
+      if(suppliers.has(c.supplier)) continue;
+      picked.push(c);
+      suppliers.add(c.supplier);
+    }
+    if(picked.length < 3){
+      toast('warn','Не удалось выбрать 3 разных поставщика','Недостаточно уникальных поставщиков.');
+    } else {
+      state.detail.selectedIds = new Set(picked.map(c=>c.id));
+      toast('ok','Автовыбор выполнен','Отмечены 3 лучших контракта от разных поставщиков.', 3400);
+    }
+    renderContracts(); renderCalcPanel();
+  });
+
+  $('#btnClearPick').addEventListener('click', ()=>{
+    state.detail.selectedIds = new Set();
+    renderContracts(); renderCalcPanel();
+    toast('ok','Сброшено','Выбор контрактов очищен.', 2400);
+  });
+
+  // ---------- File import (mock) ----------
+  const drop = $('#drop');
+  const fileInput = $('#fileInput');
+  const btnPickFiles = $('#btnPickFiles');
+  const fileList = $('#fileList');
+
+  function fmtSize(bytes){
+    const kb = bytes/1024;
+    if(kb < 1024) return `${Math.round(kb)} KB`;
+    return `${(kb/1024).toFixed(1)} MB`;
+  }
+
+  function renderFiles(){
+    if(!state.uploads.length){
+      fileList.innerHTML = '';
+      return;
+    }
+    fileList.innerHTML = state.uploads.map(f=>`
+      <div class="fileitem">
+        <div>
+          <div class="name">${escapeHtml(f.name)}</div>
+          <div class="meta">${escapeHtml(f.type || 'файл')} • ${fmtSize(f.size)} • статус: <b>${escapeHtml(f.status)}</b></div>
+        </div>
+        <button class="btn rm" type="button" data-rm="${escapeHtml(f.id)}">Удалить</button>
+      </div>
+    `).join('');
+
+    $$('button[data-rm]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-rm');
+        state.uploads = state.uploads.filter(x=>x.id !== id);
+        renderFiles();
+        toast('ok','Файл удалён','Список импорта обновлён.', 2200);
+      });
+    });
+  }
+
+  function addFiles(fileListObj){
+    const files = Array.from(fileListObj || []);
+    if(!files.length) return;
+
+    const allowed = /\.(docx?|pdf|xlsx|csv)$/i;
+    const accepted = files.filter(f=> allowed.test(f.name));
+    const rejected = files.filter(f=> !allowed.test(f.name));
+
+    if(rejected.length){
+      toast('warn','Часть файлов не поддерживается', `Пропущено: ${rejected.map(f=>f.name).join(', ')}`);
+    }
+    if(!accepted.length) return;
+
+    accepted.forEach(f=>{
+      state.uploads.push({
+        id: uid(),
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        status: 'Импортировано'
+      });
+    });
+
+    renderFiles();
+    toast('ok','Файлы добавлены', `Импортировано: ${accepted.length}`, 2800);
+
+    // Mock parsing: change status after short delay
+    setTimeout(()=>{
+      state.uploads = state.uploads.map(u=> ({...u, status: 'Распознано (мок)'}));
+      renderFiles();
+      toast('ok','Мок-парсинг завершён','Данные из файлов готовы к использованию.', 3200);
+    }, 900);
+  }
+
+  btnPickFiles.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', ()=> addFiles(fileInput.files));
+
+  ['dragenter','dragover'].forEach(ev=>{
+    drop.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      drop.classList.add('drag');
+    });
+  });
+  ['dragleave','drop'].forEach(ev=>{
+    drop.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      drop.classList.remove('drag');
+    });
+  });
+  drop.addEventListener('drop', (e)=>{
+    addFiles(e.dataTransfer.files);
+  });
+
+  // Fill demo
+  $('#btnFillDemo').addEventListener('click', ()=>{
+    $('#ktru').value = mockPrinterReq.ktru;
+    $('#title').value = mockPrinterReq.title;
+    $('#region').value = mockPrinterReq.region;
+    $('#brand').value = mockPrinterReq.brand;
+    $('#chars').value = mockPrinterReq.charsText;
+    toast('ok','Пример заполнен','Можно запускать поиск.', 2600);
+  });
+
+  // ---------- Search submit (mock background) ----------
+  const searchForm = $('#searchForm');
+  searchForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+
+    const req = {
+      ktru: $('#ktru').value.trim(),
+      title: $('#title').value.trim(),
+      region: $('#region').value,
+      brand: $('#brand').value.trim(),
+      charsText: $('#chars').value.trim()
+    };
+
+    if(!req.ktru || !req.title){
+      toast('warn','Не заполнено','Укажите КТРУ и наименование.');
+      return;
+    }
+
+    const id = uid();
+    const startedAt = new Date().toISOString();
+    const item = {
+      id,
+      startedAt,
+      ktru: req.ktru,
+      title: req.title,
+      status: 'В очереди',
+      found: null,
+      nmck: null,
+      durationSec: null,
+      files: state.uploads.slice()
+    };
+    state.searches.push(item);
+    renderHistory();
+    toast('ok','Задача добавлена','Поставлена в очередь поиска.', 2600);
+
+    setTimeout(()=>{
+      item.status = 'Идет поиск';
+      renderHistory();
+      toast('ok','Поиск запущен','Система выполняет проверку контрактов в фоне…', 3200);
+    }, 700);
+
+    const mockDuration = 65 + Math.round(Math.random()*55);
+    setTimeout(()=>{
+      item.status = 'Готово';
+
+      // Use printer dataset if matches printer or if imported files exist (simulate "parsed")
+      const shouldUsePrinter = (req.ktru === mockPrinterReq.ktru) || req.title.toLowerCase().includes('принтер') || item.files.length;
+
+      if(shouldUsePrinter){
+        const {contracts, selected} = buildMockContractsForPrinter();
+        const picked = contracts.filter(c=>selected.has(c.id));
+        const nm = computeNmck(picked);
+        item.found = contracts.length;
+        item.nmck = nm ?? 0;
+        item.durationSec = mockDuration;
+
+        // If files imported and characteristics empty, simulate fill
+        let req2 = {...req};
+        if(item.files.length && !req2.charsText){
+          req2.charsText = 'Характеристики извлечены из файлов (мок)…';
+        }
+        if(item.files.length && !req2.brand){
+          req2.brand = 'Производитель из файлов (мок)';
+        }
+
+        setDetailFrom(req2, contracts, selected, item.files);
+        state.activeSearchId = item.id;
+
+        renderHistory();
+        toast('ok','Поиск завершен',`Найдено: ${item.found}. НМЦК: ${fmtRub(item.nmck)}.`, 5000);
+
+        // Optional: gently hint to click row
+        openModal({
+          title: 'Результат готов',
+          sub: 'Вы можете открыть результаты, кликнув строку “Готово” в истории (или перейти сразу).',
+          pill: 'Готово',
+          bodyHtml: `
+            <div class="row" style="margin:0">
+              <button class="btn primary" id="goDetailNow">Перейти к результатам</button>
+              <button class="btn" id="closeOnly">Закрыть</button>
+            </div>
+            <p class="hint" style="margin:10px 2px 0">Это дополнительное удобство — отдельная кнопка в таблице истории не нужна.</p>
+          `
+        });
+        setTimeout(()=>{
+          const go = $('#goDetailNow', modalBody);
+          const cl = $('#closeOnly', modalBody);
+          if(go) go.addEventListener('click', ()=>{ closeModal(); showView('detail'); });
+          if(cl) cl.addEventListener('click', ()=> closeModal());
+        }, 0);
+
+      } else {
+        item.found = 3 + Math.round(Math.random()*6);
+        item.nmck = 9500 + Math.random()*9500;
+        item.durationSec = mockDuration;
+        renderHistory();
+        toast('ok','Поиск завершен',`Найдено: ${item.found}. НМЦК: ${fmtRub(item.nmck)}.`, 4500);
+      }
+    }, 2100);
+  });
+
+  // ---------- Init ----------
+  renderHistory();
+
+})();
+</script>
+</body>
+</html>
+

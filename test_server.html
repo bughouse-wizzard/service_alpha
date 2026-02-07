@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Server Access</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Test Server Access</h1>
+    
+    <div id="status" class="status loading">Testing server connections...</div>
+    
+    <div>
+        <h3>Test Links:</h3>
+        <ul>
+            <li><a href="http://192.168.88.178:5173" target="_blank">Frontend (Port 5173)</a></li>
+            <li><a href="http://192.168.88.178:8000" target="_blank">Backend API (Port 8000)</a></li>
+            <li><a href="http://192.168.88.178:8000/health" target="_blank">Backend Health Check</a></li>
+            <li><a href="http://192.168.88.178:8000/api/v1/auth/health" target="_blank">Auth API Health</a></li>
+        </ul>
+    </div>
+    
+    <div>
+        <h3>Manual Test:</h3>
+        <button onclick="testConnection()">Test All Connections</button>
+    </div>
+    
+    <script>
+        async function testConnection() {
+            const status = document.getElementById('status');
+            status.className = 'status loading';
+            status.textContent = 'Testing connections...';
+            
+            const endpoints = [
+                { url: 'http://192.168.88.178:5173', name: 'Frontend' },
+                { url: 'http://192.168.88.178:8000/health', name: 'Backend Health' },
+                { url: 'http://192.168.88.178:8000/api/v1/auth/health', name: 'Auth API' }
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint.url, { mode: 'no-cors' });
+                    results.push(`${endpoint.name}: OK (no-cors mode)`);
+                } catch (error) {
+                    try {
+                        // Try with timeout
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        const response = await fetch(endpoint.url, { 
+                            signal: controller.signal,
+                            mode: 'no-cors'
+                        });
+                        clearTimeout(timeoutId);
+                        results.push(`${endpoint.name}: OK`);
+                    } catch (fetchError) {
+                        results.push(`${endpoint.name}: ERROR - ${fetchError.message}`);
+                    }
+                }
+            }
+            
+            status.className = 'status success';
+            status.innerHTML = '<strong>Test Results:</strong><br>' + results.join('<br>');
+        }
+        
+        // Auto-test on load
+        window.onload = testConnection;
+    </script>
+</body>
+</html>

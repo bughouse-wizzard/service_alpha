@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Сервис расчета НМЦК — MVP</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="topbar">
+      <div class="brand" role="banner">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Сервис поиска и расчета НМЦК (MVP)</h1>
+          <p>ЕИС 44-ФЗ • 3 года • проверка совпадений</p>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Навигация">
+        <button class="chip" id="navHistory" aria-pressed="true" title="История (Alt+1)">
+          <span class="dot" aria-hidden="true"></span>
+          История
+          <span class="kbd">Alt+1</span>
+        </button>
+        <button class="chip" id="navDetail" aria-pressed="false" title="Результат (Alt+2)">
+          <span class="dot" aria-hidden="true"></span>
+          Результат
+          <span class="kbd">Alt+2</span>
+        </button>
+      </nav>
+
+      <div class="actions">
+        <button class="btn" id="btnHelp" title="Коротко про правила выбора">Правила</button>
+        <button class="btn primary" id="btnNewSearch" title="Новый поиск (N)">Новый поиск</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HISTORY VIEW -->
+    <section id="viewHistory" aria-label="Экран истории поисков">
+      <div class="grid">
+        <div class="card">
+          <div class="hd">
+            <div>
+              <h2>История поисков</h2>
+              <div class="sub">Клик по строке со статусом "Готово" откроет результаты.</div>
+            </div>
+            <div class="row">
+              <div class="field" style="min-width:220px; max-width:360px">
+                <label class="label" for="historyQuery">Поиск по истории</label>
+                <input id="historyQuery" type="text" placeholder="КТРУ / наименование / статус…" />
+              </div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="tablewrap" aria-label="Таблица истории">
+              <table>
+                <thead>
+                <tr>
+                  <th class="nowrap">Дата и время</th>
+                  <th>Товар / КТРУ</th>
+                  <th class="nowrap">
+                    <div class="filter-header">
+                      Статус
+                      <button class="filter-btn" id="statusFilterBtn" title="Фильтр по статусу">
+                        <i class="fas fa-filter"></i>
+                      </button>
+                      <div class="filter-dropdown" id="statusFilterDropdown" style="display: none;">
+                        <div class="filter-options">
+                          <label><input type="checkbox" class="status-filter" value="all" checked> Все статусы</label>
+                          <label><input type="checkbox" class="status-filter" value="queued"> В очереди</label>
+                          <label><input type="checkbox" class="status-filter" value="searching"> Идет поиск</label>
+                          <label><input type="checkbox" class="status-filter" value="downloading"> Загрузка</label>
+                          <label><input type="checkbox" class="status-filter" value="analyzing"> Анализ</label>
+                          <label><input type="checkbox" class="status-filter" value="done"> Готово</label>
+                          <label><input type="checkbox" class="status-filter" value="error"> Ошибка</label>
+                          <label><input type="checkbox" class="status-filter" value="cancelled"> Отменено</label>
+                          <label><input type="checkbox" class="status-filter" value="stopped"> Остановлен</label>
+                        </div>
+                        <div class="filter-actions">
+                          <button class="btn btn-sm" id="applyStatusFilter">Применить</button>
+                          <button class="btn btn-sm btn-outline" id="clearStatusFilter">Сбросить</button>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                  <th>Краткий итог</th>
+                  <th class="nowrap">Время поиска</th>
+                  <th class="nowrap">Действия</th>
+                </tr>
+                </thead>
+                <tbody id="historyTbody"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="margin:10px 2px 0">
+              Наведите курсор на готовую строку и кликните — откроется экран результатов.
+            </p>
+          </div>
+        </div>
+
+        <aside class="rightcol" aria-label="Панель быстрого запуска">
+          <div class="card">
+            <div class="hd">
+              <div>
+                <h2>Новый поиск</h2>
+                <div class="sub">Введите требования и/или импортируйте исходные файлы, затем запустите поиск.</div>
+              </div>
+            </div>
+            <div class="bd">
+              <form id="searchForm">
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="ktru">Код КТРУ</label>
+                    <input id="ktru" type="text" placeholder="Напр. 26.20.16.110-00000001" required />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="title">Наименование</label>
+                    <input id="title" type="text" placeholder="Напр. Принтер лазерный" required />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="vendor">Поставщик (опционально)</label>
+                    <input id="vendor" type="text" placeholder="Наименование поставщика" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="characteristics">Характеристики (JSON)</label>
+                    <textarea id="characteristics" placeholder='[{"name": "Модель", "value": "X123"}, {"name": "Цвет", "value": "черный"}]'></textarea>
+                  </div>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="row">
+                  <div class="field">
+                    <label class="label">Или загрузите файл с КТРУ</label>
+                    <div class="drop" id="dropzone">
+                      <div>
+                        <div style="font-size:13px; font-weight:800">Перетащите файл сюда</div>
+                        <div style="font-size:12px; color:var(--muted)">.txt, .csv, .xlsx до 10 МБ</div>
+                      </div>
+                      <button type="button" class="btn" id="browseFiles">
+                        <i class="fas fa-folder-open"></i> Выбрать файл
+                      </button>
+                      <input type="file" id="fileInput" accept=".txt,.csv,.xlsx" style="display:none" />
+                    </div>
+                    <div class="filelist" id="fileList"></div>
+                  </div>
+                </div>
+                
+                <div class="row">
+                  <div class="field">
+                    <label class="label" for="periodYears">Период поиска (лет)</label>
+                    <input id="periodYears" type="number" min="1" max="10" value="3" />
+                  </div>
+                  <div class="field">
+                    <label class="label" for="region">Регион</label>
+                    <select id="region">
+                      <option value="all">Все регионы</option>
+                      <option value="77">Москва</option>
+                      <option value="78">Санкт-Петербург</option>
+                      <option value="52">Нижегородская область</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="row" style="margin-top:16px">
+                  <button type="submit" class="btn primary" style="flex:1">
+                    <i class="fas fa-search"></i> Запустить поиск
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="stat">
+            <div class="k">Статистика сессии</div>
+            <div class="v" id="sessionStats">—</div>
+            <div class="mini" id="sessionInfo">Загружается…</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- DETAIL VIEW (hidden by default) -->
+    <section id="viewDetail" aria-label="Экран результатов" style="display:none">
+      <div class="grid">
+        <div class="card">
+          <div class="hd">
+            <div>
+              <h2 id="detailTitle">Результаты поиска</h2>
+              <div class="sub" id="detailSubtitle">Загрузка данных…</div>
+            </div>
+            <div class="row">
+              <button class="btn" id="btnBack">
+                <i class="fas fa-arrow-left"></i> Назад к истории
+              </button>
+            </div>
+          </div>
+          <div class="bd">
+            <div id="detailContent">
+              <p>Выберите задачу из истории для просмотра результатов.</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="rightcol">
+          <div class="card">
+            <div class="hd">
+              <h2>Лог сверки</h2>
+              <div class="sub">Сравнение характеристик</div>
+            </div>
+            <div class="bd">
+              <div id="auditLogContent" style="font-size:13px; line-height:1.5">
+                Выберите контракт и нажмите "Детали" для просмотра лога сверки.
+              </div>
+            </div>
+          </div>
+
+          <div class="stat">
+            <div class="k">Статус задачи</div>
+            <div class="v" id="taskStatus">—</div>
+            <div class="mini" id="taskProgress">—</div>
+          </div>
+
+          <div class="stat">
+            <div class="k">Найдено контрактов</div>
+            <div class="v" id="contractsCount">0</div>
+            <div class="mini" id="contractsInfo">—</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODALS -->
+  <div class="modalback" id="helpModal">
+    <div class="modal">
+      <div class="mhd">
+        <h3>Правила выбора контрактов для НМЦК</h3>
+        <button class="btn" id="closeHelp">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="mbd">
+        <p><strong>Основные критерии:</strong></p>
+        <ul style="margin:10px 0 20px 20px; font-size:13px; line-height:1.6">
+          <li>Контракты должны быть исполнены (статус "Исполнен")</li>
+          <li>Совпадение КТРУ кода не менее 8 знаков</li>
+          <li>Период: последние 3 года</li>
+          <li>Регион: предпочтительно тот же или соседний</li>
+          <li>Характеристики: не менее 70% совпадений</li>
+        </ul>
+        <p><strong>Расчет НМЦК:</strong></p>
+        <ul style="margin:10px 0 0 20px; font-size:13px; line-height:1.6">
+          <li>Берется медиана цен выбранных контрактов</li>
+          <li>Учитывается инфляция (ИПЦ Росстата)</li>
+          <li>Корректировка на региональные коэффициенты</li>
+          <li>Доверительный интервал: 95%</li>
+        </ul>
+      </div>
+      <div class="mft">
+        <button class="btn primary" id="closeHelpBtn">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toasts" id="toasts"></div>
+
+  <script src="/static/app.js"></script>
+</div>
+</body>
+</html>

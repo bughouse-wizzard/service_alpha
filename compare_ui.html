@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сравнение интерфейсов</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .comparison { display: flex; gap: 20px; }
+        .demo, .current { flex: 1; border: 1px solid #ccc; padding: 15px; }
+        h2 { margin-top: 0; }
+        .issue { color: red; font-weight: bold; }
+        .ok { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Сравнение интерфейсов</h1>
+    
+    <div class="comparison">
+        <div class="demo">
+            <h2>Демо-интерфейс (правильный)</h2>
+            <ul>
+                <li class="ok">✅ Двухколоночный макет (grid)</li>
+                <li class="ok">✅ Левая колонка: История поисков</li>
+                <li class="ok">✅ Правая колонка: Форма нового поиска</li>
+                <li class="ok">✅ Полная форма с полями: КТРУ, Наименование, Поставщик, Характеристики</li>
+                <li class="ok">✅ Dropzone для загрузки файлов</li>
+                <li class="ok">✅ Кнопка "Запустить поиск"</li>
+                <li class="ok">✅ Статистика в правой колонке</li>
+            </ul>
+        </div>
+        
+        <div class="current">
+            <h2>Текущий интерфейс (проблемы)</h2>
+            <ul>
+                <li class="issue">❌ Нет двухколоночного макета</li>
+                <li class="issue">❌ Форма нового поиска скрыта или недоступна</li>
+                <li class="issue">❌ Нет dropzone для файлов</li>
+                <li class="issue">❌ Не работает workflow из интерфейса</li>
+                <li class="ok">✅ Фильтр по статусу есть</li>
+                <li class="ok">✅ Красная кнопка остановки есть</li>
+                <li class="ok">✅ История поисков есть</li>
+            </ul>
+        </div>
+    </div>
+    
+    <h2>Проблемы workflow:</h2>
+    <ol>
+        <li>Невозможно запустить новый поиск из интерфейса</li>
+        <li>Нет формы для ввода данных КТРУ</li>
+        <li>Нет загрузки файлов через интерфейс</li>
+        <li>Интерфейс не соответствует UX из демо</li>
+    </ol>
+</body>
+</html>
