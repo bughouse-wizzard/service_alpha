@@ -38,6 +38,7 @@ class SearchCreateRequest(BaseModel):
     date_to: Opt[str] = Field(None, description="End date (YYYY-MM-DD)")
     price_min: Opt[float] = Field(None, description="Minimum price")
     price_max: Opt[float] = Field(None, description="Maximum price")
+    technical_specification: Opt[str] = Field(None, description="Technical specification text for comparison")
     ai_model_version: Opt[str] = Field(None, description="AI model version to use")
     confidence_threshold: float = Field(0.7, description="Confidence threshold for AI")
 
@@ -66,6 +67,7 @@ class SearchResponse(BaseModel):
     date_to: Opt[str]
     price_min: Opt[float]
     price_max: Opt[float]
+    technical_specification: Opt[str]
     total_contracts_found: int
     contracts_processed: int
     processing_started_at: Opt[str]
@@ -80,6 +82,20 @@ class SearchResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+@router.get("/api/searches", response_model=List[SearchResponse])
+async def get_searches(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of all searches (search history)
+    
+    Returns paginated list of search requests for history view
+    """
+    searches = db.query(SearchRequest).order_by(SearchRequest.created_at.desc()).offset(skip).limit(limit).all()
+    return searches
 
 @router.post("/api/search", response_model=SearchResponse, status_code=status.HTTP_201_CREATED)
 async def create_search(

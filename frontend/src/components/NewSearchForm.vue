@@ -1,67 +1,76 @@
 <template>
   <form @submit.prevent="submitSearch" class="space-y-4">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Search Query -->
+      <!-- Input Source -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          Search Query *
-        </label>
-        <input
-          v-model="form.query"
-          type="text"
-          required
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Enter search terms..."
-        />
-      </div>
-      
-      <!-- Search Type -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
-          Search Type *
+          Input Source *
         </label>
         <select
-          v-model="form.searchType"
+          v-model="form.input_source"
           required
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">Select type...</option>
-          <option value="web">Web Search</option>
-          <option value="database">Database Search</option>
-          <option value="api">API Search</option>
-          <option value="custom">Custom Search</option>
+          <option value="">Select source...</option>
+          <option value="zakupki.gov.ru">Zakupki.gov.ru</option>
+          <option value="custom">Custom Source</option>
         </select>
       </div>
       
-      <!-- Max Results -->
+      <!-- KTRU Code -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          Max Results
+          KTRU Code
         </label>
         <input
-          v-model="form.maxResults"
+          v-model="form.ktru_code"
+          type="text"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="e.g., 34.12.11.110"
+        />
+      </div>
+      
+      <!-- Limit Contracts -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Limit Contracts
+        </label>
+        <input
+          v-model="form.limit_contracts"
           type="number"
           min="1"
           max="1000"
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="100"
+          placeholder="10"
         />
       </div>
       
-      <!-- Priority -->
+      <!-- Region Filter -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          Priority
+          Region Filter
         </label>
-        <select
-          v-model="form.priority"
+        <input
+          v-model="form.region_filter"
+          type="text"
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="low">Low</option>
-          <option value="medium" selected>Medium</option>
-          <option value="high">High</option>
-        </select>
+          placeholder="e.g., 77 for Moscow"
+        />
       </div>
+    </div>
+    
+    <!-- Technical Specification -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Technical Specification *
+      </label>
+      <textarea
+        v-model="form.technical_specification"
+        required
+        rows="4"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Enter technical specification text for comparison..."
+      ></textarea>
     </div>
     
     <!-- Advanced Options -->
@@ -76,29 +85,86 @@
       </button>
       
       <div v-if="showAdvanced" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Date Range -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Timeout (seconds)
+            Date From
           </label>
           <input
-            v-model="form.timeout"
-            type="number"
-            min="10"
-            max="3600"
+            v-model="form.date_from"
+            type="date"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="300"
           />
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Filters
+            Date To
           </label>
           <input
-            v-model="form.filters"
-            type="text"
+            v-model="form.date_to"
+            type="date"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g., language:en, date:2024"
+          />
+        </div>
+        
+        <!-- Price Range -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Price Min
+          </label>
+          <input
+            v-model="form.price_min"
+            type="number"
+            min="0"
+            step="0.01"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Minimum price"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Price Max
+          </label>
+          <input
+            v-model="form.price_max"
+            type="number"
+            min="0"
+            step="0.01"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Maximum price"
+          />
+        </div>
+        
+        <!-- NMC Value -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            NMC Value
+          </label>
+          <input
+            v-model="form.nmc_value"
+            type="number"
+            min="0"
+            step="0.01"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="NMC value threshold"
+          />
+        </div>
+        
+        <!-- Confidence Threshold -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Confidence Threshold
+          </label>
+          <input
+            v-model="form.confidence_threshold"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="0.7"
           />
         </div>
       </div>
@@ -131,27 +197,38 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import api from "../services/api"
 
 const emit = defineEmits<{
   searchStarted: [searchId: string]
 }>()
 
 interface SearchForm {
-  query: string
-  searchType: string
-  maxResults: number
-  priority: string
-  timeout: number
-  filters: string
+  input_source: string
+  ktru_code: string
+  limit_contracts: number
+  region_filter: string
+  technical_specification: string
+  date_from: string
+  date_to: string
+  price_min: number | null
+  price_max: number | null
+  nmc_value: number | null
+  confidence_threshold: number
 }
 
 const form = reactive<SearchForm>({
-  query: '',
-  searchType: '',
-  maxResults: 100,
-  priority: 'medium',
-  timeout: 300,
-  filters: ''
+  input_source: 'zakupki.gov.ru',
+  ktru_code: '',
+  limit_contracts: 10,
+  region_filter: '',
+  technical_specification: '',
+  date_from: '',
+  date_to: '',
+  price_min: null,
+  price_max: null,
+  nmc_value: null,
+  confidence_threshold: 0.7
 })
 
 const showAdvanced = ref(false)
@@ -161,33 +238,51 @@ const submitSearch = async () => {
   isSubmitting.value = true
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Prepare data for API call
+    const searchData = {
+      input_source: form.input_source,
+      ktru_code: form.ktru_code || null,
+      limit_contracts: form.limit_contracts,
+      region_filter: form.region_filter || null,
+      technical_specification: form.technical_specification || null,
+      date_from: form.date_from || null,
+      date_to: form.date_to || null,
+      price_min: form.price_min || null,
+      price_max: form.price_max || null,
+      nmc_value: form.nmc_value || null,
+      confidence_threshold: form.confidence_threshold
+    }
     
-    // Generate a mock search ID
-    const searchId = `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    // Call the API
+    const response = await api.real.startSearch(searchData)
     
     // Emit event with search ID
-    emit('searchStarted', searchId)
+    emit('searchStarted', response.id)
     
     // Reset form
     resetForm()
     
-    console.log(`Search started with ID: ${searchId}`)
+    console.log(`Search started with ID: ${response.id}`)
   } catch (error) {
     console.error('Failed to start search:', error)
+    alert('Failed to start search. Please check the console for details.')
   } finally {
     isSubmitting.value = false
   }
 }
 
 const resetForm = () => {
-  form.query = ''
-  form.searchType = ''
-  form.maxResults = 100
-  form.priority = 'medium'
-  form.timeout = 300
-  form.filters = ''
+  form.input_source = 'zakupki.gov.ru'
+  form.ktru_code = ''
+  form.limit_contracts = 10
+  form.region_filter = ''
+  form.technical_specification = ''
+  form.date_from = ''
+  form.date_to = ''
+  form.price_min = null
+  form.price_max = null
+  form.nmc_value = null
+  form.confidence_threshold = 0.7
   showAdvanced.value = false
 }
 </script>

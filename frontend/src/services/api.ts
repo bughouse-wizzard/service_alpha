@@ -46,12 +46,17 @@ api.interceptors.response.use(
 export const searchApi = {
   // Start a new search
   startSearch: async (data: {
-    query: string
-    searchType: string
-    maxResults?: number
-    priority?: string
-    timeout?: number
-    filters?: string
+    input_source: string
+    ktru_code?: string | null
+    limit_contracts?: number
+    region_filter?: string | null
+    technical_specification?: string | null
+    date_from?: string | null
+    date_to?: string | null
+    price_min?: number | null
+    price_max?: number | null
+    nmc_value?: number | null
+    confidence_threshold?: number
   }) => {
     const response = await api.post('/api/search', data)
     return response.data
@@ -59,12 +64,10 @@ export const searchApi = {
   
   // Get search history
   getSearchHistory: async (params?: {
-    page?: number
+    skip?: number
     limit?: number
-    status?: string
-    type?: string
   }) => {
-    const response = await api.get('/api/search', { params })
+    const response = await api.get('/api/searches', { params })
     return response.data
   },
   
@@ -197,9 +200,11 @@ export const mockApi = {
     return {
       id: `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...data,
-      status: 'running',
-      createdAt: new Date().toISOString(),
-      progress: 0
+      status: 'RUNNING',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      contracts_processed: 0,
+      total_contracts_found: 0
     }
   },
   
@@ -208,58 +213,63 @@ export const mockApi = {
     const mockSearches = [
       {
         id: 'search_1707234567890_abc123',
-        query: 'machine learning algorithms',
-        type: 'web',
-        status: 'completed',
-        resultsCount: 245,
-        createdAt: '2024-02-05T10:30:00Z',
-        progress: 100
+        input_source: 'zakupki.gov.ru',
+        ktru_code: '34.12.11.110',
+        status: 'COMPLETED',
+        limit_contracts: 10,
+        region_filter: '77',
+        technical_specification: 'Technical spec example 1',
+        total_contracts_found: 245,
+        contracts_processed: 245,
+        created_at: '2024-02-05T10:30:00Z',
+        updated_at: '2024-02-05T10:45:00Z'
       },
       {
         id: 'search_1707234567891_def456',
-        query: 'vue 3 composition api',
-        type: 'api',
-        status: 'running',
-        resultsCount: 87,
-        createdAt: '2024-02-05T11:15:00Z',
-        progress: 65
+        input_source: 'zakupki.gov.ru',
+        ktru_code: '34.12.11.120',
+        status: 'RUNNING',
+        limit_contracts: 20,
+        region_filter: '78',
+        technical_specification: 'Technical spec example 2',
+        total_contracts_found: 87,
+        contracts_processed: 65,
+        created_at: '2024-02-05T11:15:00Z',
+        updated_at: '2024-02-05T11:20:00Z'
       },
       {
         id: 'search_1707234567892_ghi789',
-        query: 'python data analysis',
-        type: 'database',
-        status: 'failed',
-        resultsCount: 0,
-        createdAt: '2024-02-05T09:45:00Z',
-        progress: 30
+        input_source: 'zakupki.gov.ru',
+        ktru_code: '34.12.11.130',
+        status: 'FAILED',
+        limit_contracts: 15,
+        region_filter: '50',
+        technical_specification: 'Technical spec example 3',
+        total_contracts_found: 0,
+        contracts_processed: 0,
+        created_at: '2024-02-05T09:45:00Z',
+        updated_at: '2024-02-05T09:50:00Z',
+        error_message: 'Connection timeout'
       }
     ]
     
-    return {
-      searches: mockSearches,
-      pagination: {
-        page: params?.page || 1,
-        limit: params?.limit || 10,
-        total: 25,
-        totalPages: 3
-      }
-    }
+    return mockSearches
   },
   
   getSearchById: async (searchId: string) => {
     await new Promise(resolve => setTimeout(resolve, 500))
     return {
       id: searchId,
-      query: 'Example search query',
-      type: 'web',
-      status: 'running',
-      progress: 45,
-      createdAt: '2024-02-05T11:15:00Z',
-      parameters: {
-        maxResults: 100,
-        priority: 'medium',
-        timeout: 300
-      }
+      input_source: 'zakupki.gov.ru',
+      ktru_code: '34.12.11.110',
+      status: 'RUNNING',
+      limit_contracts: 10,
+      region_filter: '77',
+      technical_specification: 'Example technical specification',
+      total_contracts_found: 100,
+      contracts_processed: 45,
+      created_at: '2024-02-05T11:15:00Z',
+      updated_at: '2024-02-05T11:20:00Z'
     }
   },
   
