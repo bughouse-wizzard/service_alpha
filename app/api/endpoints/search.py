@@ -173,13 +173,13 @@ async def stream_search_events(search_id: uuid.UUID):
                 # Refresh search object from database
                 db.refresh(search)
                 
-                if search.status == SearchStatus.COMPLETED.value:
+                if search.status == SearchStatus.COMPLETED:
                     yield f"data: {json.dumps({'status': 'completed', 'processed_count': search.contracts_processed, 'total': search.total_contracts_found})}\n\n"
                     break
-                elif search.status == SearchStatus.FAILED.value:
+                elif search.status == SearchStatus.FAILED:
                     yield f"data: {json.dumps({'status': 'failed', 'error': search.error_message})}\n\n"
                     break
-                elif search.status == SearchStatus.CANCELLED.value:
+                elif search.status == SearchStatus.CANCELLED:
                     yield f"data: {json.dumps({'status': 'cancelled', 'message': 'Search cancelled'})}\n\n"
                     break
                 
@@ -226,10 +226,10 @@ async def get_search_report(
         )
     
     # Check if search is completed
-    if search.status != SearchStatus.COMPLETED.value:
+    if search.status != SearchStatus.COMPLETED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Search with ID {search_id} is not completed. Current status: {search.status}"
+            detail=f"Search with ID {search_id} is not completed. Current status: {search.status.value}"
         )
     
     # Generate report

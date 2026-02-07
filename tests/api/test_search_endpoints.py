@@ -17,7 +17,7 @@ def create_test_search_request():
     search.id = uuid.uuid4()
     search.input_source = "test_source"
     search.ktru_code = "123456"
-    search.status = SearchStatus.PENDING.value  # Use .value for string
+    search.status = SearchStatus.PENDING  # Use enum member, not string
     search.limit_contracts = 5
     search.selected_contract_ids = None
     search.nmc_value = None
@@ -272,7 +272,7 @@ def test_search_events_stream():
     test_search = create_test_search_request()
     test_search.input_source = "test_source_4"
     test_search.limit_contracts = 2
-    test_search.status = SearchStatus.COMPLETED.value  # This should be "completed"
+    test_search.status = SearchStatus.COMPLETED  # Use enum member, not string
     test_search.contracts_processed = 5
     test_search.total_contracts_found = 5
     
@@ -302,7 +302,7 @@ def test_search_events_stream():
         # Mock refresh to return the search with COMPLETED status
         def mock_refresh(search_obj):
             # Update the search object with completed status
-            search_obj.status = SearchStatus.COMPLETED.value
+            search_obj.status = SearchStatus.COMPLETED
             search_obj.contracts_processed = 5
             search_obj.total_contracts_found = 5
         
@@ -327,7 +327,7 @@ def test_search_events_stream():
                             line_str = line
                         lines.append(line_str)
                         # Break after we get the completed status
-                        if '"status":"completed"' in line_str:
+                        if '"status":"completed"' in line_str or '"status": "completed"' in line_str:
                             break
                 
                 # Should have received some events
@@ -344,7 +344,7 @@ def test_search_events_stream():
                 assert event_json.get("search_id") == str(test_search.id)
                 
                 # Check that we got a completed status
-                completed_found = any('"status":"completed"' in line for line in lines)
+                completed_found = any('"status":"completed"' in line or '"status": "completed"' in line for line in lines)
                 assert completed_found, "Should have received completed status"
 
 @pytest.mark.integration
