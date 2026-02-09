@@ -1,2 +1,8 @@
 flask
 requests
+sqlalchemy
+alembic
+psycopg2-binary
+pytest
+python-dotenv
+flask-sqlalchemy
