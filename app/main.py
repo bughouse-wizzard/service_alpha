@@ -5,13 +5,14 @@ from typing import Dict, Any
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import redis
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 from app.logging_config import setup_logging
+from app.database import engine, get_db
 
 # Setup logging
 setup_logging()
@@ -41,18 +42,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# Database setup
-engine = create_engine(settings.db_url)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # Redis setup

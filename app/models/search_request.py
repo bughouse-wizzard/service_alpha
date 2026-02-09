@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Enum, DateTime, Float, JSON, Index
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -17,14 +16,14 @@ class SearchStatus(enum.Enum):
 
 
 class SearchRequest(Base):
-    __tablename__ = "search_requests"
+    __tablename__ = "search_request"
     __table_args__ = (
         Index('idx_search_request_status_created', 'status', 'created_at'),
         Index('idx_search_request_object_name', 'object_name'),
     )
 
-    # Primary key
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    # Primary key - using String for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     
     # Status field with ENUM
     status = Column(Enum(SearchStatus), nullable=False, default=SearchStatus.RUNNING)

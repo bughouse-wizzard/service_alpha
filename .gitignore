@@ -58,3 +58,18 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
+test_simple.py
+
+# Setup scripts
+setup_*.sh
+
+# Workspace directories
+workspace_*/
+openhands/
+backend/
+orkestrator-bot/
+app/services/

@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -17,15 +16,15 @@ class MatchStatus(enum.Enum):
 
 
 class SpecComparisonRow(Base):
-    __tablename__ = "spec_comparison_rows"
+    __tablename__ = "spec_comparison_row"
 
-    # Primary key
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    # Primary key - using String for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     
-    # Foreign key to ContractResult
+    # Foreign key to ContractResult - using String for SQLite compatibility
     contract_result_id = Column(
-        UUID(as_uuid=True), 
-        ForeignKey("contract_results.id", ondelete="CASCADE"), 
+        String(36), 
+        ForeignKey("contract_result.id", ondelete="CASCADE"), 
         nullable=False,
         index=True
     )

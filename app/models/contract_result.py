@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Index, JSON
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -9,20 +8,20 @@ from app.database import Base
 
 
 class ContractResult(Base):
-    __tablename__ = "contract_results"
+    __tablename__ = "contract_result"
     __table_args__ = (
         Index('idx_contract_result_price', 'price'),
         Index('idx_contract_result_ai_score', 'ai_score'),
         Index('idx_contract_result_contract_date', 'contract_date'),
     )
 
-    # Primary key
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    # Primary key - using String for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     
-    # Foreign key to SearchRequest
+    # Foreign key to SearchRequest - using String for SQLite compatibility
     search_id = Column(
-        UUID(as_uuid=True), 
-        ForeignKey("search_requests.id", ondelete="CASCADE"), 
+        String(36), 
+        ForeignKey("search_request.id", ondelete="CASCADE"), 
         nullable=False,
         index=True
     )
