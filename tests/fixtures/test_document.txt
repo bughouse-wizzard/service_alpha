@@ -1,0 +1,10 @@
+Test Document for Extraction Service
+
+This is a test document containing specific keywords that should be extractable.
+Keywords: EXTRACTION_TEST PDF_DOCUMENT SAMPLE_CONTENT
+
+Additional content for testing text extraction capabilities.
+The quick brown fox jumps over the lazy dog.
+Testing 1, 2, 3... Testing!
+
+End of test document.
