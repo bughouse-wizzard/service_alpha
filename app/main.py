@@ -13,7 +13,7 @@ from app.routers import search
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Lifespan context manager for FastAPI app."""
     # Initialize database on startup
-    init_db()
+    await init_db()
     print("Database initialized")
     yield
     # Cleanup on shutdown
