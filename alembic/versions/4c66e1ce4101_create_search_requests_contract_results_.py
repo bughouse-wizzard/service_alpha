@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('input_source', sa.String(length=500), nullable=False),
     sa.Column('object_name', sa.String(length=500), nullable=False),
     sa.Column('ktru_code', sa.String(length=100), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'PARTIAL', name='searchstatus'), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'RUNNING', 'PROCESSING', 'COMPLETED', 'FAILED', 'PARTIAL', 'STOPPED', name='searchstatus'), nullable=False),
     sa.Column('found_total', sa.Integer(), nullable=False),
     sa.Column('processed_count', sa.Integer(), nullable=False),
     sa.Column('nmc_value', sa.Numeric(precision=15, scale=2), nullable=True),

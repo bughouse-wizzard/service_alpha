@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -130,50 +131,118 @@ async def stop_search(
 
 
 @router.get("/{search_id}/events")
-async def get_search_events(search_id: str):
+async def get_search_events(search_id: str, db: AsyncSession = Depends(get_db)):
     """
     Server-Sent Events (SSE) endpoint for search status updates.
     
-    Yields status updates from Redis or DB polling.
-    In this implementation, we simulate events with polling.
+    Uses Redis pub/sub for real-time event streaming.
     """
+    # First, check if search exists
+    search_request = await db.get(SearchRequest, search_id)
+    if not search_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Search request with ID {search_id} not found"
+        )
+    
     async def event_generator():
-        """Generate SSE events for search status updates."""
-        # In production, this would connect to Redis pub/sub or poll database
-        # For simulation, we'll send a few status updates
+        """Generate SSE events from Redis subscription."""
+        from app.services.redis_service import get_redis_service
         
-        events = [
-            {"event": "status", "data": {"status": "PROCESSING", "message": "Search started"}},
-            {"event": "progress", "data": {"processed": 10, "total": 100, "percentage": 10}},
-            {"event": "progress", "data": {"processed": 50, "total": 100, "percentage": 50}},
-            {"event": "progress", "data": {"processed": 100, "total": 100, "percentage": 100}},
-            {"event": "status", "data": {"status": "COMPLETED", "message": "Search completed successfully"}},
-        ]
-        
-        for i, event_data in enumerate(events):
-            # Format as SSE
-            event = schemas.SearchEvent(
-                event=event_data["event"],
-                data=event_data["data"],
-                id=str(i),
-                retry=3000  # 3 seconds retry
+        try:
+            # Get Redis service
+            redis_service = await get_redis_service()
+            
+            # Send initial status from database
+            initial_event = schemas.SearchEvent(
+                event="status",
+                data={
+                    "status": search_request.status.value,
+                    "message": f"Search is {search_request.status.value.lower()}",
+                    "search_id": search_id,
+                    "processed_count": search_request.processed_count,
+                    "found_total": search_request.found_total,
+                    "nmc_value": str(search_request.nmc_value) if search_request.nmc_value else None
+                },
+                id="initial",
+                retry=3000
             )
             
-            # Convert to SSE format
+            # Send initial event
             lines = []
-            if event.id:
-                lines.append(f"id: {event.id}")
-            if event.event:
-                lines.append(f"event: {event.event}")
-            if event.retry:
-                lines.append(f"retry: {event.retry}")
+            if initial_event.id:
+                lines.append(f"id: {initial_event.id}")
+            if initial_event.event:
+                lines.append(f"event: {initial_event.event}")
+            if initial_event.retry:
+                lines.append(f"retry: {initial_event.retry}")
             
-            lines.append(f"data: {json.dumps(event.data)}")
-            
+            lines.append(f"data: {json.dumps(initial_event.data)}")
             yield "\n".join(lines) + "\n\n"
             
-            # Wait before sending next event
-            await asyncio.sleep(1)
+            # Subscribe to Redis channel for this search
+            async for event_data in redis_service.subscribe_to_search(search_id):
+                try:
+                    # Format as SSE
+                    event = schemas.SearchEvent(
+                        event=event_data.get("event", "message"),
+                        data=event_data.get("data", {}),
+                        id=str(uuid.uuid4()),
+                        retry=3000
+                    )
+                    
+                    # Convert to SSE format
+                    lines = []
+                    if event.id:
+                        lines.append(f"id: {event.id}")
+                    if event.event:
+                        lines.append(f"event: {event.event}")
+                    if event.retry:
+                        lines.append(f"retry: {event.retry}")
+                    
+                    lines.append(f"data: {json.dumps(event.data)}")
+                    
+                    yield "\n".join(lines) + "\n\n"
+                    
+                except Exception as e:
+                    logger.error(f"Error formatting SSE event: {e}")
+                    # Send error event
+                    error_event = schemas.SearchEvent(
+                        event="error",
+                        data={"error": "Failed to format event"},
+                        id=str(uuid.uuid4()),
+                        retry=3000
+                    )
+                    
+                    lines = [
+                        f"id: {error_event.id}",
+                        f"event: {error_event.event}",
+                        f"retry: {error_event.retry}",
+                        f"data: {json.dumps(error_event.data)}"
+                    ]
+                    yield "\n".join(lines) + "\n\n"
+        
+        except asyncio.CancelledError:
+            logger.info(f"SSE connection cancelled for search {search_id}")
+            raise
+        
+        except Exception as e:
+            logger.error(f"Error in SSE event generator: {e}")
+            
+            # Send final error event
+            error_event = schemas.SearchEvent(
+                event="error",
+                data={"error": f"Connection error: {str(e)}"},
+                id="final_error",
+                retry=None  # No retry on fatal error
+            )
+            
+            lines = [
+                f"id: {error_event.id}",
+                f"event: {error_event.event}",
+                f"data: {json.dumps(error_event.data)}"
+            ]
+            yield "\n".join(lines) + "\n\n"
     
     return StreamingResponse(
         event_generator(),
@@ -181,7 +250,7 @@ async def get_search_events(search_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable buffering for nginx
+            "X-Accel-Buffering": "no"  # Disable buffering for nginx
         }
     )
 
