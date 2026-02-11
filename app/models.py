@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import (
-    UUID,
     Boolean,
     Column,
     DateTime,
@@ -17,7 +16,6 @@ from sqlalchemy import (
     Text,
     JSON,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -29,10 +27,12 @@ class Base(DeclarativeBase):
 class SearchStatus(str, Enum):
     """Enum for search request status."""
     PENDING = "pending"
+    RUNNING = "running"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
     PARTIAL = "partial"
+    STOPPED = "stopped"
 
 
 class MatchType(str, Enum):
@@ -55,10 +55,10 @@ class SearchRequest(Base):
     """Model for search requests."""
     __tablename__ = "search_requests"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[str] = mapped_column(
+        String(36),
         primary_key=True,
-        default=uuid.uuid4,
+        default=lambda: str(uuid.uuid4()),
         index=True
     )
     input_source: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -97,14 +97,14 @@ class ContractResult(Base):
     """Model for contract search results."""
     __tablename__ = "contract_results"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[str] = mapped_column(
+        String(36),
         primary_key=True,
-        default=uuid.uuid4,
+        default=lambda: str(uuid.uuid4()),
         index=True
     )
-    search_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    search_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("search_requests.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -121,7 +121,7 @@ class ContractResult(Base):
     ai_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     manufacturer_target: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     manufacturer_found: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    raw_data_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    raw_data_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Relationships
     search_request: Mapped["SearchRequest"] = relationship(
@@ -142,14 +142,14 @@ class SpecComparisonRow(Base):
     """Model for specification comparison rows."""
     __tablename__ = "spec_comparison_rows"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[str] = mapped_column(
+        String(36),
         primary_key=True,
-        default=uuid.uuid4,
+        default=lambda: str(uuid.uuid4()),
         index=True
     )
-    contract_result_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    contract_result_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("contract_results.id", ondelete="CASCADE"),
         nullable=False,
         index=True
