@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 import httpx
 import os
+import uuid
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,12 +17,21 @@ REDIS_URL = os.getenv("REDIS_URL")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 ZAKUPKI_BASE_URL = os.getenv("ZAKUPKI_BASE_URL", "https://zakupki.gov.ru")
 
+# Import Celery app
+try:
+    from app.worker import celery_app, perform_search_task
+    CELERY_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import Celery app: {e}")
+    CELERY_AVAILABLE = False
+
 # Pydantic models
 class HealthResponse(BaseModel):
     status: str
     database: str
     redis: str
     version: str
+    celery: str
 
 class OrderRequest(BaseModel):
     item_id: str
@@ -34,6 +44,19 @@ class OrderResponse(BaseModel):
     quantity: int
     message: Optional[str] = None
 
+class SearchTaskRequest(BaseModel):
+    object_name: str
+    input_source: str = "manual"
+    ktru_code: Optional[str] = None
+    limit_contracts: Optional[int] = 10
+
+class SearchTaskResponse(BaseModel):
+    search_id: str
+    task_id: str
+    status: str
+    message: str
+    object_name: str
+
 # Health check endpoint
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -42,6 +65,7 @@ async def health_check():
         status="healthy",
         database="connected" if DATABASE_URL else "disconnected",
         redis="connected" if REDIS_URL else "disconnected",
+        celery="connected" if CELERY_AVAILABLE else "disconnected",
         version="1.0.0"
     )
 
@@ -93,6 +117,71 @@ async def test_zakupki():
             }
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Failed to connect to Zakupki: {str(e)}")
+
+# Search task endpoint
+@app.post("/search", response_model=SearchTaskResponse)
+async def create_search_task(search_request: SearchTaskRequest):
+    """Create a new search task"""
+    if not CELERY_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Celery worker is not available. Please check if worker.py is properly configured."
+        )
+    
+    # Generate search ID
+    search_id = str(uuid.uuid4())
+    
+    # In a real implementation, you would save the search request to database here
+    # For now, we'll just log it and trigger the task
+    
+    print(f"Creating search task: search_id={search_id}, object_name={search_request.object_name}")
+    
+    # Trigger the Celery task
+    try:
+        task = perform_search_task.delay(search_id)
+        task_id = task.id
+        
+        print(f"Celery task triggered: task_id={task_id}")
+        
+        return SearchTaskResponse(
+            search_id=search_id,
+            task_id=task_id,
+            status="pending",
+            message="Search task created and queued for processing",
+            object_name=search_request.object_name
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to trigger search task: {str(e)}"
+        )
+
+# Task status endpoint
+@app.get("/task/{task_id}")
+async def get_task_status(task_id: str):
+    """Get status of a Celery task"""
+    if not CELERY_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Celery worker is not available"
+        )
+    
+    try:
+        task = celery_app.AsyncResult(task_id)
+        
+        return {
+            "task_id": task_id,
+            "status": task.status,
+            "result": task.result if task.ready() else None,
+            "successful": task.successful() if task.ready() else None
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task status: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
