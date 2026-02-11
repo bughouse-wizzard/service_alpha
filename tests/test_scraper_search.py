@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import respx
+import httpx
 from httpx import Response
 
 from app.services.scraper.searcher import ZakupkiSearcher, SearchParams, ContractInfo
