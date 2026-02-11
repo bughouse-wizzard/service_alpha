@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Dashboard - Service Alpha</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="container mt-4" x-data="app()" x-init="loadHistory()">
+        <h1 class="mb-4">Search Dashboard</h1>
+        
+        <!-- Search Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">New Search</h5>
+            </div>
+            <div class="card-body">
+                <form @submit.prevent="startSearch()">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="objectName" class="form-label">Object Name *</label>
+                            <input type="text" class="form-control" id="objectName" x-model="searchForm.objectName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inputSource" class="form-label">Input Source</label>
+                            <select class="form-select" id="inputSource" x-model="searchForm.inputSource">
+                                <option value="manual">Manual</option>
+                                <option value="file">File</option>
+                                <option value="api">API</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ktruCode" class="form-label">KTRU Code</label>
+                            <input type="text" class="form-control" id="ktruCode" x-model="searchForm.ktruCode">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="limitContracts" class="form-label">Limit Contracts</label>
+                            <input type="number" class="form-control" id="limitContracts" x-model="searchForm.limitContracts" min="1" max="100" value="10">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" :disabled="isSearching">
+                        <span x-show="!isSearching">Start Search</span>
+                        <span x-show="isSearching" class="spinner-border spinner-border-sm" role="status"></span>
+                        <span x-show="isSearching"> Searching...</span>
+                    </button>
+                    <button type="button" class="btn btn-danger ms-2" @click="stopSearch()" :disabled="!isSearching || !currentSearchId">
+                        Stop Search
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="card mb-4" x-show="isSearching">
+            <div class="card-header">
+                <h5 class="mb-0">Search Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         :style="'width: ' + progressPercentage + '%;'"
+                         :aria-valuenow="progressPercentage" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span x-text="progressPercentage + '%'"></span>
+                    </div>
+                </div>
+                <div class="mt-2" x-text="progressMessage"></div>
+                <div class="mt-2" x-text="'Processed: ' + processedCount + ' / ' + totalCount"></div>
+            </div>
+        </div>
+
+        <!-- Current Search Results -->
+        <div class="card mb-4" x-show="currentResults.length > 0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Current Search Results</h5>
+                <span class="badge bg-primary" x-text="'Found: ' + currentResults.length"></span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Reestr Number</th>
+                                <th>Contract Number</th>
+                                <th>Price</th>
+                                <th>Supplier</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="result in currentResults" :key="result.id">
+                                <tr>
+                                    <td x-text="result.reestr_number"></td>
+                                    <td x-text="result.contract_number"></td>
+                                    <td x-text="formatPrice(result.price)"></td>
+                                    <td x-text="result.supplier_name"></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" @click="openComparisonModal(result)">
+                                            Compare
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search History -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Search History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Object Name</th>
+                                <th>Status</th>
+                                <th>Found Total</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="search in searchHistory" :key="search.id">
+                                <tr>
+                                    <td x-text="search.id.substring(0, 8) + '...'"></td>
+                                    <td x-text="search.object_name"></td>
+                                    <td>
+                                        <span class="badge" :class="getStatusBadgeClass(search.status)" x-text="search.status"></span>
+                                    </td>
+                                    <td x-text="search.found_total"></td>
+                                    <td x-text="formatDate(search.created_at)"></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @click="viewSearchResults(search.id)">
+                                            View Results
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Modal -->
+        <div class="modal fade" id="comparisonModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Contract Comparison</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div x-show="comparisonData">
+                            <h6 x-text="'Contract: ' + comparisonData.contract_number"></h6>
+                            <table class="table table-bordered">
+                                <tbody>
+                                    <tr>
+                                        <th>Reestr Number</th>
+                                        <td x-text="comparisonData.reestr_number"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Price</th>
+                                        <td x-text="formatPrice(comparisonData.price)"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Supplier</th>
+                                        <td x-text="comparisonData.supplier_name"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <td x-text="comparisonData.customer_name"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Sign Date</th>
+                                        <td x-text="formatDate(comparisonData.sign_date)"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Execution Date</th>
+                                        <td x-text="formatDate(comparisonData.execution_date)"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div x-show="!comparisonData" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/app.js"></script>
+</body>
+</html>

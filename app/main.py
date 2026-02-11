@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db, get_db
 from app.routers import search
@@ -36,6 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Include routers
 app.include_router(search.router, prefix="/api", tags=["search"])
 
@@ -51,6 +55,8 @@ async def root():
             "docs": "/docs",
             "redoc": "/redoc",
             "search": "/api/search",
+            "static": "/static/index.html",
+            "health": "/health",
         }
     }
 
